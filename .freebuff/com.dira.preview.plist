@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dira.preview</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/maureenwaweru/Documents/Dira/.freebuff/serve.mjs</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/maureenwaweru/Documents/Dira</string>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/maureenwaweru/Documents/Dira/.freebuff/preview-9f94983b-2d9d-410a-8abd-818b633d6f58.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/maureenwaweru/Documents/Dira/.freebuff/preview-9f94983b-2d9d-410a-8abd-818b633d6f58.log</string>
+</dict>
+</plist>

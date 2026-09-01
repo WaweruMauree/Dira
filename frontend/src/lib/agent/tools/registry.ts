@@ -1,0 +1,43 @@
+import type { AgentMode, AgentModeConfig, ToolName } from '@/lib/api/types'
+
+export const AGENT_MODES: Record<AgentMode, AgentModeConfig> = {
+  general: {
+    label: 'Career Assistant',
+    route: '/chat',
+    tools: ['webSearch', 'buildCv', 'salaryEstimator'],
+    description: 'General career questions, CVs, and salary research.',
+  },
+  career_guidance: {
+    label: 'Career Guidance',
+    route: '/career-guidance',
+    tools: ['mapPathway', 'analyzeSkillsGap', 'profileLookup', 'buildCv', 'salaryEstimator'],
+    description: 'Pathway mapping and skills gap analysis.',
+  },
+  job_aggregation: {
+    label: 'Job Search',
+    route: '/jobs',
+    tools: ['listJobs', 'webSearch', 'saveOpportunity', 'salaryEstimator'],
+    description: 'Find and save job opportunities.',
+  },
+}
+
+export function getModeConfig(mode: AgentMode): AgentModeConfig {
+  return AGENT_MODES[mode]
+}
+
+export function getModeFromPath(pathname: string): AgentMode | null {
+  if (pathname.startsWith('/career-guidance')) return 'career_guidance'
+  if (pathname.startsWith('/jobs')) return 'job_aggregation'
+  if (pathname.startsWith('/chat')) return 'general'
+  return null
+}
+
+export function getNewChatPath(mode: AgentMode): string {
+  return `${AGENT_MODES[mode].route}/new`
+}
+
+export function getChatPath(mode: AgentMode, chatId: string): string {
+  return `${AGENT_MODES[mode].route}/${chatId}`
+}
+
+export type { ToolName, AgentMode }

@@ -1,0 +1,40 @@
+export const API_ENDPOINTS = {
+  health: '/api/v1/health',
+  me: '/api/v1/me',
+  onboarding: '/api/v1/onboarding',
+  agentChat: '/api/v1/agent/chat',
+  conversations: '/api/v1/conversations',
+  userJobs: '/api/v1/user-jobs',
+  cvs: '/api/v1/cvs',
+  salaryEstimates: '/api/v1/salary-estimates',
+  pathwaysMap: '/api/v1/pathways/map',
+  skillsGapAnalyze: '/api/v1/skills-gap/analyze',
+  profiles: '/api/v1/profiles',
+  students: '/api/v1/students',
+  studentProfiles: '/api/v1/student-profiles',
+  studentSkills: '/api/v1/student-skills',
+  careerInterests: '/api/v1/career-interests',
+  admins: '/api/v1/admins',
+  skills: '/api/v1/skills',
+  pathwayRoles: '/api/v1/pathway-roles',
+  pathwayRoleSkills: '/api/v1/pathway-roles',
+  pathwayEdges: '/api/v1/pathway-edges',
+  learningResources: '/api/v1/learning-resources',
+  opportunitySources: '/api/v1/opportunity-sources',
+  opportunities: '/api/v1/opportunities',
+  opportunitySkills: '/api/v1/opportunities',
+  communitySubmissions: '/api/v1/community-submissions',
+  savedOpportunities: '/api/v1/saved-opportunities',
+  matchResults: '/api/v1/match-results',
+  skillsGapAnalyses: '/api/v1/skills-gap-analyses',
+  careerPathways: '/api/v1/career-pathways',
+  profileInteractions: '/api/v1/profile-interactions',
+  userInteractions: '/api/v1/user-interactions',
+  auditLogs: '/api/v1/audit-logs',
+  aggregationRuns: '/api/v1/aggregation-runs',
+} as const
+
+export function getAgentApiUrl(path: string) {
+  const base = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:4000'
+  return `${base.replace(/\/$/, '')}${path}`
+}
