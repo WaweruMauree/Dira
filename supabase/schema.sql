@@ -967,3 +967,9 @@ CREATE POLICY match_results_admin_all ON public.match_results
   FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS students_update_own ON public.students;
+CREATE POLICY students_update_own ON public.students
+  FOR UPDATE TO authenticated
+  USING (user_id = auth.uid() OR public.is_admin())
+  WITH CHECK (user_id = auth.uid() OR public.is_admin());

@@ -110,7 +110,16 @@ async function main() {
       password,
       options: { data: { full_name: 'Smoke Student', role: 'STUDENT' } },
     })
-    if (signUpError) throw signUpError
+    if (signUpError) {
+      console.error(
+        '\nCould not obtain a JWT from live Supabase Auth.\n' +
+          `Reason: ${signUpError.message}\n` +
+          'Disable Authentication → Providers → Email → Confirm email for local testing,\n' +
+          'or set SMOKE_EMAIL and SMOKE_PASSWORD to a confirmed student account.\n' +
+          'Unauthenticated route sweep already passed (401 on every protected endpoint).'
+      )
+      process.exit(1)
+    }
     token = signUpData.session?.access_token
     if (!token) {
       const { data: signIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
@@ -142,7 +151,33 @@ async function main() {
       careerReadiness: 'PREPARING',
     },
   })
+  const me = await call('/me', { token })
+  const meData = (me.json as {
+    data: {
+      profile: { id: string }
+      student: { id: number } | null
+      studentProfile: { profile_id: number } | null
+    }
+  }).data
   await call('/me', { token, method: 'PATCH', body: { full_name: 'Smoke Student Updated' } })
+  await call(`/profiles/${meData.profile.id}`, { token })
+  if (meData.student) {
+    await call(`/students/${meData.student.id}`, { token })
+    await call(`/students/${meData.student.id}`, {
+      token,
+      method: 'PATCH',
+      body: { course: 'BBIT' },
+      expect: [200, 403, 404],
+    })
+  }
+  if (meData.studentProfile) {
+    await call(`/student-profiles/${meData.studentProfile.profile_id}`, { token })
+    await call(`/student-profiles/${meData.studentProfile.profile_id}`, {
+      token,
+      method: 'PATCH',
+      body: { bio: 'Smoke bio' },
+    })
+  }
 
   const conv = await call('/conversations', {
     token,
@@ -201,12 +236,14 @@ async function main() {
   await call(`/cvs/${cvId}`, { token })
   await call(`/cvs/${cvId}`, { token, method: 'PATCH', body: { title: 'Smoke Resume 2' } })
 
-  await call('/salary-estimates', {
+  const salary = await call('/salary-estimates', {
     token,
     method: 'POST',
     body: { query: 'data analyst', location: 'Remote', currency: 'USD', min: 10000, median: 20000, max: 30000, sampleSize: 5, source: 'himalayas' },
   })
+  const salaryId = (salary.json as { data: { id: number } }).data.id
   await call('/salary-estimates', { token })
+  await call(`/salary-estimates/${salaryId}`, { token })
 
   const listGets = [
     '/skills',
@@ -231,8 +268,83 @@ async function main() {
     '/audit-logs',
     '/aggregation-runs',
   ]
+  const listed: Record<string, unknown> = {}
   for (const path of listGets) {
-    await call(path, { token, expect: [200, 403] })
+    listed[path] = (await call(path, { token, expect: [200, 403] })).json
+  }
+
+  function firstKey(path: string, keys: string[]) {
+    const rows = (listed[path] as { data?: Array<Record<string, unknown>> } | undefined)?.data
+    const row = rows?.[0]
+    if (!row) return null
+    for (const key of keys) {
+      if (row[key] != null) return row[key] as number | string
+    }
+    return null
+  }
+
+  const skillId = firstKey('/skills', ['skill_id'])
+  const roleId = firstKey('/pathway-roles', ['role_id'])
+  const edgeId = firstKey('/pathway-edges', ['id'])
+  const resourceId = firstKey('/learning-resources', ['id'])
+  const sourceId = firstKey('/opportunity-sources', ['source_id'])
+  const oppId = firstKey('/opportunities', ['opportunity_id'])
+  const studentSkillId = firstKey('/student-skills', ['id'])
+  const interestId = firstKey('/career-interests', ['id'])
+
+  if (skillId) await call(`/skills/${skillId}`, { token })
+  if (roleId) {
+    await call(`/pathway-roles/${roleId}`, { token })
+    await call(`/pathway-roles/${roleId}/skills`, { token })
+  }
+  if (edgeId) await call(`/pathway-edges/${edgeId}`, { token })
+  if (resourceId) await call(`/learning-resources/${resourceId}`, { token })
+  if (sourceId) await call(`/opportunity-sources/${sourceId}`, { token })
+  if (oppId) {
+    await call(`/opportunities/${oppId}`, { token })
+    await call(`/opportunities/${oppId}/skills`, { token })
+  }
+  if (studentSkillId) await call(`/student-skills/${studentSkillId}`, { token })
+  if (interestId) await call(`/career-interests/${interestId}`, { token })
+
+  if (meData.studentProfile) {
+    await call('/profile-interactions', {
+      token,
+      method: 'POST',
+      body: {
+        profile_id: meData.studentProfile.profile_id,
+        action: 'VIEWED',
+        target_type: 'opportunity',
+        target_id: Number(oppId ?? 1),
+      },
+      expect: [201, 400, 403],
+    })
+    if (roleId) {
+      await call('/career-pathways', {
+        token,
+        method: 'POST',
+        body: {
+          profile_id: meData.studentProfile.profile_id,
+          target_role_id: roleId,
+          roadmap_data: { steps: ['Learn SQL', 'Build a portfolio'] },
+        },
+        expect: [201, 400, 403],
+      })
+    }
+  }
+  if (oppId) {
+    await call('/user-interactions', {
+      token,
+      method: 'POST',
+      body: { opportunity_id: oppId, action: 'VIEW' },
+      expect: [201, 400, 403],
+    })
+    await call('/saved-opportunities', {
+      token,
+      method: 'POST',
+      body: { opportunity_id: oppId },
+      expect: [201, 400, 403, 409],
+    })
   }
 
   await call('/pathways/map?targetRole=Data%20Analyst', { token, expect: [200, 404] })
@@ -258,13 +370,15 @@ async function main() {
     expect: [201, 400, 403],
   })
 
-  const missing = await fetch(`${BASE.replace('/api/v1', '')}/api/v1/tools/web-search?q=test`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (missing.status === 404 || missing.status === 401) {
-    console.log(`OK   GET /tools/web-search is not a proxy (${missing.status})`)
-  } else {
-    throw new Error(`Expected /tools/web-search to be absent, got ${missing.status}`)
+  for (const proxy of ['/tools/web-search?q=test', '/tools/jobs?q=test', '/tools/salary-estimate?q=test']) {
+    const missing = await fetch(`${BASE.replace('/api/v1', '')}/api/v1${proxy}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (missing.status === 404 || missing.status === 401) {
+      console.log(`OK   GET ${proxy.split('?')[0]} is not a proxy (${missing.status})`)
+    } else {
+      throw new Error(`Expected ${proxy} to be absent, got ${missing.status}`)
+    }
   }
 
   const agent = await call('/agent/chat', {
@@ -304,6 +418,23 @@ async function main() {
         },
       })
     }
+  }
+
+  const { data: otherSignUp } = await supabase.auth.signUp({
+    email: `dira.smoke.b.${stamp}@gmail.com`,
+    password,
+    options: { data: { full_name: 'Smoke Other', role: 'STUDENT' } },
+  })
+  const otherToken = otherSignUp.session?.access_token
+  if (otherToken) {
+    if (jobId) {
+      await call(`/user-jobs/${jobId}`, { token: otherToken, expect: [403, 404] })
+    }
+    await call(`/conversations/${convId}`, { token: otherToken, expect: [403, 404] })
+    await call(`/cvs/${cvId}`, { token: otherToken, expect: [403, 404] })
+    console.log('OK   RLS isolation (second user cannot read first user rows)')
+  } else {
+    console.log('SKIP RLS isolation (second user has no session — email confirmation required)')
   }
 
   if (jobId) await call(`/user-jobs/${jobId}`, { token, method: 'DELETE', expect: 204 })
