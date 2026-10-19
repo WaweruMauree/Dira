@@ -1,4 +1,4 @@
-import { GraduationCap, Wrench, Compass } from 'lucide-react'
+import { GraduationCap, Wrench, Compass, MessageSquare } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 
@@ -6,10 +6,12 @@ const steps = [
   { num: 1, label: 'Academic Info', description: 'Course and year of study', icon: GraduationCap },
   { num: 2, label: 'Skills Assessment', description: 'Technical and soft skills', icon: Wrench },
   { num: 3, label: 'Career Direction', description: 'Interests and readiness', icon: Compass },
+  { num: 4, label: 'Your voice', description: 'Job search feedback', icon: MessageSquare },
 ]
 
 export default function OnboardingProgress({ currentStep, totalSteps }) {
   const progress = (currentStep / totalSteps) * 100
+  const visibleSteps = steps.filter((s) => s.num <= totalSteps)
 
   return (
     <aside className="bg-card-bg border border-hairline rounded-xl shadow-card p-6 h-fit sticky top-6">
@@ -20,7 +22,7 @@ export default function OnboardingProgress({ currentStep, totalSteps }) {
       <Progress value={progress} className="mb-6" />
 
       <ol className="space-y-4">
-        {steps.map(({ num, label, description, icon: Icon }) => (
+        {visibleSteps.map(({ num, label, description, icon: Icon }) => (
           <li
             key={num}
             className={cn(

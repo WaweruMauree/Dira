@@ -9,7 +9,6 @@ export const SOFT_SKILLS = [
   'Presentation Skills',
 ]
 
-/** Fallback when course is unset or "Other" */
 export const GENERIC_TECHNICAL_SKILLS = [
   'Python',
   'JavaScript',
@@ -23,36 +22,27 @@ export const GENERIC_TECHNICAL_SKILLS = [
 
 export const GENERIC_SOFT_SKILLS = SOFT_SKILLS
 
-export const CAREER_INTERESTS = [
-  'Data Science',
-  'Software Engineering',
-  'Product Management',
-  'Finance',
-  'Legal Tech',
-  'Consulting',
-  'Entrepreneurship',
-  'Research',
-  'Marketing',
-  'Cybersecurity',
-]
+export const OTHER_COURSE_ID = 'OTHER'
 
-export const COURSES = [
-  'BBIT',
-  'BSc Computer Science',
-  'BSc Applied Statistics',
-  'BBA',
-  'LLB',
-  'BSc Hospitality Management',
-  'BSc International Business',
-  'Other',
+/** Stable catalog ids; label is shown in UI and stored in DB for known programmes */
+export const COURSE_OPTIONS = [
+  { id: 'BBIT', label: 'Bachelor of Business Information Technology (BBIT)' },
+  { id: 'BSC_CS', label: 'BSc Computer Science' },
+  { id: 'BSC_STATS', label: 'BSc Applied Statistics' },
+  { id: 'BBA', label: 'Bachelor of Business Administration (BBA)' },
+  { id: 'LLB', label: 'Bachelor of Laws (LLB)' },
+  { id: 'BSC_CNS', label: 'BSc Computer Networks and Security (CNS)' },
+  { id: 'BSC_ACTUARIAL', label: 'BSc Actuarial Science' },
+  { id: 'BSC_FIN_ECON', label: 'BSc Financial Economics' },
+  { id: 'BSC_FIN_ENG', label: 'BSc Financial Engineering' },
+  { id: 'BCOM', label: 'BSc Business Commerce (BCOM)' },
+  { id: 'BSC_TOURISM', label: 'BSc Tourism and Hospitality Management' },
+  { id: 'BSC_INTL_STUDIES', label: 'BSc International Studies' },
+  { id: OTHER_COURSE_ID, label: 'Other' },
 ]
 
 export const YEARS_OF_STUDY = [1, 2, 3, 4, 5]
 
-/**
- * Course-tailored skill profiles for onboarding step 2.
- * Technical + soft skills reflect what each programme typically assesses.
- */
 export const COURSE_SKILL_PROFILES = {
   BBIT: {
     label: 'Business & IT',
@@ -67,16 +57,9 @@ export const COURSE_SKILL_PROFILES = {
       'Cloud Computing',
       'API Development',
     ],
-    soft: [
-      'Problem Solving',
-      'Communication',
-      'Teamwork',
-      'Critical Thinking',
-      'Time Management',
-      'Adaptability',
-    ],
+    soft: ['Problem Solving', 'Communication', 'Teamwork', 'Critical Thinking', 'Time Management', 'Adaptability'],
   },
-  'BSc Computer Science': {
+  BSC_CS: {
     label: 'Computer Science',
     technical: [
       'Python',
@@ -90,16 +73,9 @@ export const COURSE_SKILL_PROFILES = {
       'Cloud Computing',
       'Git & Version Control',
     ],
-    soft: [
-      'Problem Solving',
-      'Critical Thinking',
-      'Teamwork',
-      'Communication',
-      'Adaptability',
-      'Attention to Detail',
-    ],
+    soft: ['Problem Solving', 'Critical Thinking', 'Teamwork', 'Communication', 'Adaptability', 'Attention to Detail'],
   },
-  'BSc Applied Statistics': {
+  BSC_STATS: {
     label: 'Applied Statistics',
     technical: [
       'Statistics',
@@ -112,14 +88,7 @@ export const COURSE_SKILL_PROFILES = {
       'SPSS',
       'Data Visualization',
     ],
-    soft: [
-      'Critical Thinking',
-      'Problem Solving',
-      'Communication',
-      'Presentation Skills',
-      'Attention to Detail',
-      'Research',
-    ],
+    soft: ['Critical Thinking', 'Problem Solving', 'Communication', 'Presentation Skills', 'Attention to Detail', 'Research'],
   },
   BBA: {
     label: 'Business Administration',
@@ -133,14 +102,7 @@ export const COURSE_SKILL_PROFILES = {
       'Market Research',
       'CRM Tools',
     ],
-    soft: [
-      'Communication',
-      'Leadership',
-      'Presentation Skills',
-      'Teamwork',
-      'Negotiation',
-      'Time Management',
-    ],
+    soft: ['Communication', 'Leadership', 'Presentation Skills', 'Teamwork', 'Negotiation', 'Time Management'],
   },
   LLB: {
     label: 'Law',
@@ -154,18 +116,80 @@ export const COURSE_SKILL_PROFILES = {
       'Westlaw / Legal Databases',
       'Contract Review',
     ],
-    soft: [
-      'Critical Thinking',
-      'Communication',
-      'Argumentation',
-      'Attention to Detail',
-      'Ethical Judgment',
-      'Research',
-      'Client Relations',
-    ],
+    soft: ['Critical Thinking', 'Communication', 'Argumentation', 'Attention to Detail', 'Ethical Judgment', 'Research', 'Client Relations'],
   },
-  'BSc Hospitality Management': {
-    label: 'Hospitality Management',
+  BSC_CNS: {
+    label: 'Computer Networks & Security',
+    technical: [
+      'Network Administration',
+      'Cybersecurity',
+      'Linux',
+      'Python',
+      'Firewall Configuration',
+      'Cloud Security',
+      'Penetration Testing Basics',
+      'SQL',
+    ],
+    soft: ['Problem Solving', 'Attention to Detail', 'Communication', 'Teamwork', 'Critical Thinking', 'Adaptability'],
+  },
+  BSC_ACTUARIAL: {
+    label: 'Actuarial Science',
+    technical: [
+      'Statistics',
+      'Probability',
+      'Excel',
+      'R',
+      'Python',
+      'Financial Modeling',
+      'SQL',
+      'Risk Analysis',
+    ],
+    soft: ['Critical Thinking', 'Attention to Detail', 'Problem Solving', 'Communication', 'Presentation Skills', 'Research'],
+  },
+  BSC_FIN_ECON: {
+    label: 'Financial Economics',
+    technical: [
+      'Econometrics',
+      'Excel',
+      'Financial Modeling',
+      'Statistics',
+      'Python',
+      'SQL',
+      'Market Analysis',
+      'Stata',
+    ],
+    soft: ['Critical Thinking', 'Communication', 'Problem Solving', 'Presentation Skills', 'Research', 'Attention to Detail'],
+  },
+  BSC_FIN_ENG: {
+    label: 'Financial Engineering',
+    technical: [
+      'Python',
+      'Quantitative Finance',
+      'Excel',
+      'SQL',
+      'Financial Modeling',
+      'Statistics',
+      'MATLAB',
+      'Risk Management',
+    ],
+    soft: ['Problem Solving', 'Critical Thinking', 'Attention to Detail', 'Communication', 'Teamwork', 'Adaptability'],
+  },
+  BCOM: {
+    label: 'Business Commerce',
+    technical: [
+      'Excel',
+      'Accounting Software',
+      'PowerPoint',
+      'Market Research',
+      'CRM Tools',
+      'Data Analysis',
+      'E-commerce Platforms',
+      'SQL',
+    ],
+    soft: ['Communication', 'Negotiation', 'Teamwork', 'Leadership', 'Presentation Skills', 'Customer Service'],
+  },
+  BSC_TOURISM: {
+    label: 'Tourism & Hospitality',
     technical: [
       'Excel',
       'POS Systems',
@@ -176,72 +200,113 @@ export const COURSE_SKILL_PROFILES = {
       'Customer Relationship Tools',
       'Inventory Management',
     ],
-    soft: [
-      'Customer Service',
-      'Communication',
-      'Teamwork',
-      'Leadership',
-      'Problem Solving',
-      'Adaptability',
-      'Time Management',
-    ],
+    soft: ['Customer Service', 'Communication', 'Teamwork', 'Leadership', 'Problem Solving', 'Adaptability', 'Time Management'],
   },
-  'BSc International Business': {
-    label: 'International Business',
+  BSC_INTL_STUDIES: {
+    label: 'International Studies',
     technical: [
       'Excel',
-      'SQL',
-      'Market Research',
+      'Research Methods',
       'PowerPoint',
-      'CRM Tools',
-      'Financial Analysis',
-      'Trade & Compliance Tools',
+      'Policy Analysis',
       'Data Analysis',
+      'Microsoft Word',
+      'Foreign Language Tools',
+      'CRM Tools',
     ],
-    soft: [
-      'Communication',
-      'Cross-cultural Awareness',
-      'Negotiation',
-      'Presentation Skills',
-      'Teamwork',
-      'Adaptability',
-      'Leadership',
-    ],
+    soft: ['Cross-cultural Awareness', 'Communication', 'Critical Thinking', 'Negotiation', 'Presentation Skills', 'Adaptability', 'Research'],
   },
-  Other: {
+  OTHER: {
     label: 'General',
     technical: GENERIC_TECHNICAL_SKILLS,
     soft: GENERIC_SOFT_SKILLS,
   },
 }
 
-export function getCourseSkillProfile(course) {
-  if (!course) {
+export const COURSE_CAREER_INTERESTS = {
+  BBIT: ['Software Engineering', 'Product Management', 'Data Science', 'FinTech', 'Consulting', 'Entrepreneurship', 'Cybersecurity'],
+  BSC_CS: ['Software Engineering', 'Cybersecurity', 'Data Science', 'Machine Learning', 'Cloud Engineering', 'Game Development', 'Research'],
+  BSC_STATS: ['Data Science', 'Actuarial Science', 'Research', 'Consulting', 'Public Policy', 'Finance', 'Healthcare Analytics'],
+  BBA: ['Finance', 'Consulting', 'Marketing', 'Entrepreneurship', 'Product Management', 'Human Resources', 'Operations'],
+  LLB: ['Legal Tech', 'Corporate Law', 'Litigation', 'Public Policy', 'Compliance', 'Human Rights', 'Consulting'],
+  BSC_CNS: ['Cybersecurity', 'Network Engineering', 'Cloud Security', 'IT Support', 'Penetration Testing', 'DevOps', 'Consulting'],
+  BSC_ACTUARIAL: ['Actuarial Science', 'Risk Management', 'Insurance', 'Finance', 'Data Science', 'Consulting', 'Banking'],
+  BSC_FIN_ECON: ['Finance', 'Economic Research', 'Banking', 'Public Policy', 'Consulting', 'Investment Analysis', 'Development Finance'],
+  BSC_FIN_ENG: ['Quantitative Finance', 'Risk Management', 'Investment Banking', 'FinTech', 'Data Science', 'Trading', 'Consulting'],
+  BCOM: ['Sales', 'Marketing', 'Entrepreneurship', 'E-commerce', 'Supply Chain', 'Finance', 'Consulting'],
+  BSC_TOURISM: ['Hotel Management', 'Event Planning', 'Travel & Tourism', 'Customer Experience', 'Marketing', 'Entrepreneurship', 'Operations'],
+  BSC_INTL_STUDIES: ['Diplomacy', 'International Development', 'NGO Work', 'Public Policy', 'Consulting', 'Research', 'Cross-border Business'],
+  OTHER: ['Data Science', 'Software Engineering', 'Finance', 'Consulting', 'Entrepreneurship', 'Research', 'Marketing', 'Public Service'],
+}
+
+export function getCourseOption(catalogId) {
+  return COURSE_OPTIONS.find((c) => c.id === catalogId) ?? null
+}
+
+export function getCourseLabel(catalogId) {
+  return getCourseOption(catalogId)?.label ?? catalogId ?? ''
+}
+
+export function getProfileKey(form) {
+  const id = form?.courseCatalogId || form?.course
+  if (!id) return OTHER_COURSE_ID
+  return COURSE_SKILL_PROFILES[id] ? id : OTHER_COURSE_ID
+}
+
+export function getCourseDisplayLabel(form) {
+  const key = getProfileKey(form)
+  if (key === OTHER_COURSE_ID && form?.otherProgramme?.trim()) {
+    return form.otherProgramme.trim()
+  }
+  return getCourseLabel(key)
+}
+
+export function resolveCourseForDatabase(form) {
+  const key = getProfileKey(form)
+  if (key === OTHER_COURSE_ID) {
+    return (form.otherProgramme || '').trim().slice(0, 150)
+  }
+  return getCourseLabel(key).slice(0, 150)
+}
+
+export function getCourseSkillProfile(profileKey) {
+  if (!profileKey) {
     return {
       label: 'Select a course',
       technical: GENERIC_TECHNICAL_SKILLS,
       soft: GENERIC_SOFT_SKILLS,
     }
   }
-  return COURSE_SKILL_PROFILES[course] ?? COURSE_SKILL_PROFILES.Other
+  return COURSE_SKILL_PROFILES[profileKey] ?? COURSE_SKILL_PROFILES.OTHER
 }
 
-export function getTechnicalSkillsForCourse(course) {
-  return getCourseSkillProfile(course).technical
+export function getTechnicalSkillsForCourse(profileKey) {
+  return getCourseSkillProfile(profileKey).technical
 }
 
-export function getSoftSkillsForCourse(course) {
-  return getCourseSkillProfile(course).soft
+export function getSoftSkillsForCourse(profileKey) {
+  return getCourseSkillProfile(profileKey).soft
 }
 
-/** Keep only skills that belong to the current course profile */
-export function filterSkillsForCourse(skillMap, allowedSkills) {
-  if (!skillMap || !allowedSkills) return {}
-  const allowed = new Set(allowedSkills)
-  return Object.fromEntries(
-    Object.entries(skillMap).filter(([skill]) => allowed.has(skill))
-  )
+export function getCareerInterestsForCourse(profileKey) {
+  return COURSE_CAREER_INTERESTS[profileKey] ?? COURSE_CAREER_INTERESTS.OTHER
 }
 
-/** @deprecated use getTechnicalSkillsForCourse */
+export function filterSkillsForCourse(skillMap, allowedSkills, extraAllowed = []) {
+  if (!skillMap) return {}
+  const allowed = new Set([...(allowedSkills || []), ...extraAllowed])
+  return Object.fromEntries(Object.entries(skillMap).filter(([skill]) => allowed.has(skill)))
+}
+
+/** Preset list only — custom skills stay in map even if not in preset */
+export function filterPresetSkillsOnly(skillMap, presetList) {
+  if (!skillMap || !presetList) return {}
+  const preset = new Set(presetList)
+  return Object.fromEntries(Object.entries(skillMap).filter(([skill]) => !preset.has(skill)))
+}
+
+export const COURSES = COURSE_OPTIONS.map((c) => c.id)
+
+export const CAREER_INTERESTS = COURSE_CAREER_INTERESTS.OTHER
+
 export const TECHNICAL_SKILLS = GENERIC_TECHNICAL_SKILLS
