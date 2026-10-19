@@ -18,7 +18,8 @@ export const linkedinJobSearchTool = listJobsTool
 
 export const listJobsDefinition: ClientToolDefinition = {
   name: 'listJobs',
-  description: 'Search remote and entry-level jobs from Jobicy and Himalayas (Remotive/Arbeitnow as fallback). Then store them for this student.',
+  description:
+    'Search job boards using queries aligned with the student career interests and skills. Pass a specific query when the student asks; otherwise interests from their profile are used. Results are saved to their feed.',
   parameters: {
     type: 'object',
     properties: {
@@ -26,12 +27,33 @@ export const listJobsDefinition: ClientToolDefinition = {
       location: { type: 'string' },
       employmentType: { type: 'string' },
     },
-    required: ['query'],
+    required: [],
   },
 }
 
 export async function executeListJobs(input: Record<string, unknown>, token: string | null) {
-  const query = String(input.query ?? '')
+  let query = String(input.query ?? '').trim()
+
+  if (!query && token) {
+    try {
+      const { data } = await diraApi.me(token)
+      const interests = (data.interests ?? [])
+        .map((row: { area?: string }) => row.area)
+        .filter(Boolean)
+      const skills = (data.skills ?? [])
+        .map((row: { skills?: { name?: string } | null }) => row.skills?.name)
+        .filter(Boolean)
+      query =
+        [...interests.slice(0, 3), ...skills.slice(0, 2)].join(' ') ||
+        data.student?.course ||
+        'graduate internship'
+    } catch {
+      query = 'graduate internship'
+    }
+  }
+
+  if (!query) query = 'graduate internship'
+
   const location = input.location ? String(input.location) : undefined
   const collected: UserJobInput[] = []
   const errors: string[] = []

@@ -1,38 +1,19 @@
-import { useState, useCallback, useEffect } from 'react'
-import { diraApi } from '@/lib/api/dira'
-import { useAuth } from '@/context/AuthProvider'
+import { useCallback, useEffect } from 'react'
+import { useStudentAppData } from '@/context/StudentAppDataProvider'
 
 export function useRecentChats() {
-  const { getAccessToken } = useAuth()
-  const [chats, setChatsState] = useState([])
-
-  const refresh = useCallback(async () => {
-    const token = await getAccessToken()
-    if (!token) {
-      setChatsState([])
-      return
-    }
-    try {
-      const { data } = await diraApi.listConversations(token)
-      setChatsState(
-        (data ?? []).map((row) => ({
-          id: row.id,
-          title: row.title,
-          mode: row.mode,
-          updatedAt: row.updated_at,
-          preview: row.preview ?? '',
-        }))
-      )
-    } catch {
-      setChatsState([])
-    }
-  }, [getAccessToken])
+  const { home } = useStudentAppData()
 
   useEffect(() => {
-    refresh()
-    window.addEventListener('focus', refresh)
-    return () => window.removeEventListener('focus', refresh)
-  }, [refresh])
+    home.ensureChats()
+    const onFocus = () => home.refreshChats()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [home.ensureChats, home.refreshChats])
 
-  return { chats, refresh }
+  const refresh = useCallback(async () => {
+    await home.refreshChats()
+  }, [home])
+
+  return { chats: home.chats, refresh }
 }

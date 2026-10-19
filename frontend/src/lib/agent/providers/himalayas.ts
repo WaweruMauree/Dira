@@ -26,7 +26,10 @@ export function mapHimalayas(job: HimalayasJob): UserJobInput {
     title: job.title || 'Untitled role',
     organisation: job.companyName ?? null,
     description: stripHtml(job.description || job.excerpt),
-    location: asText(job.locationRestrictions) || 'Remote',
+    location: (() => {
+      const loc = asText(job.locationRestrictions) || 'Remote'
+      return loc.length > 150 ? `${loc.slice(0, 149)}…` : loc
+    })(),
     url: job.applicationLink ?? null,
     employmentType: job.employmentType ?? null,
     experienceLevel: mapExperienceLevel(job.seniority),

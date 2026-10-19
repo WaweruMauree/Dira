@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getChatPath } from '@/lib/agent/tools/registry'
 import { useAuth } from '@/context/AuthProvider'
@@ -11,6 +11,10 @@ export default function NewChatRedirect({ mode }) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (mode === 'career_guidance') {
+      navigate('/skills-analysis', { replace: true })
+      return
+    }
     if (chatId && chatId !== 'new') return
     let cancelled = false
     ;(async () => {

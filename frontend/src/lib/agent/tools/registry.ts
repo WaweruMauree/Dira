@@ -8,10 +8,10 @@ export const AGENT_MODES: Record<AgentMode, AgentModeConfig> = {
     description: 'General career questions, CVs, and salary research.',
   },
   career_guidance: {
-    label: 'Career Guidance',
-    route: '/career-guidance',
-    tools: ['mapPathway', 'analyzeSkillsGap', 'profileLookup', 'buildCv', 'salaryEstimator'],
-    description: 'Pathway mapping and skills gap analysis.',
+    label: 'Skills Analysis',
+    route: '/skills-analysis',
+    tools: ['analyzeSkillsGap', 'webSearch', 'profileLookup', 'mapPathway'],
+    description: 'Compare your skills to industry roles and find learning resources.',
   },
   job_aggregation: {
     label: 'Job Search',
@@ -26,6 +26,7 @@ export function getModeConfig(mode: AgentMode): AgentModeConfig {
 }
 
 export function getModeFromPath(pathname: string): AgentMode | null {
+  if (pathname.startsWith('/skills-analysis')) return 'career_guidance'
   if (pathname.startsWith('/career-guidance')) return 'career_guidance'
   if (pathname.startsWith('/jobs')) return 'job_aggregation'
   if (pathname.startsWith('/chat')) return 'general'

@@ -19,7 +19,7 @@ function mapDbMessage(row) {
   }
 }
 
-export function useChat({ chatId, agentMode, tools }) {
+export function useChat({ chatId, agentMode, tools, onToolComplete }) {
   const { getAccessToken } = useAuth()
   const [messages, setMessages] = useState([])
   const [sending, setSending] = useState(false)
@@ -45,7 +45,7 @@ export function useChat({ chatId, agentMode, tools }) {
   }, [chatId, getAccessToken])
 
   const sendMessage = useCallback(
-    async (userMessage) => {
+    async (userMessage, extras = {}) => {
       if (!userMessage.trim() || sending) return
 
       setSending(true)
@@ -62,6 +62,17 @@ export function useChat({ chatId, agentMode, tools }) {
       try {
         const token = await getAccessToken()
         const definitions = definitionsFor(tools)
+        const profileContext = {
+          ...(extras.profileContext ?? {}),
+          ...(extras.cvExcerpt && extras.cvExcerpt.trim()
+            ? {
+                cvExcerpt: extras.cvExcerpt.trim(),
+                cvFileName: extras.cvFileName ?? 'cv.txt',
+              }
+            : {}),
+        }
+        const hasProfileContext = Object.keys(profileContext).length > 0
+
         let response = await sendAgentMessage(
           {
             conversationId: chatId,
@@ -69,6 +80,7 @@ export function useChat({ chatId, agentMode, tools }) {
             mode: agentMode,
             tools: definitions,
             userMessage: userMessage.trim(),
+            ...(hasProfileContext ? { profileContext } : {}),
           },
           token
         )
@@ -99,6 +111,7 @@ export function useChat({ chatId, agentMode, tools }) {
                 output,
               })
               completed.push({ ...call, status: 'complete', output })
+              onToolComplete?.(String(call.name), call.input, output)
             } catch (err) {
               const message = err instanceof Error ? err.message : 'Tool failed'
               toolResults.push({
@@ -151,7 +164,7 @@ export function useChat({ chatId, agentMode, tools }) {
         setSending(false)
       }
     },
-    [agentMode, chatId, getAccessToken, sending, tools]
+    [agentMode, chatId, getAccessToken, sending, tools, onToolComplete]
   )
 
   return { messages, sending, error, sendMessage }

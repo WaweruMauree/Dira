@@ -12,11 +12,12 @@ export const analyzeSkillsGapTool = {
 
 export const analyzeSkillsGapDefinition: ClientToolDefinition = {
   name: 'analyzeSkillsGap',
-  description: 'Compare the student profile against a target role or opportunity and list skill gaps.',
+  description:
+    'Compare the student profile against industry skills for one career interest (targetRole). Returns met, upskill, and gap skills with proficiency levels and methodology.',
   parameters: {
     type: 'object',
     properties: {
-      targetRole: { type: 'string' },
+      targetRole: { type: 'string', description: 'One career interest from onboarding' },
       opportunityId: { type: 'number' },
     },
   },

@@ -1,6 +1,6 @@
 /**
  * Human-readable formatters for agent tool inputs and outputs.
- * Used by ToolCallBlock — avoids showing raw JSON to users.
+ * Used by ToolCallBlock; avoids showing raw JSON to users.
  */
 
 function asLines(items) {
@@ -27,7 +27,7 @@ function formatWebSearch(input, output) {
   if (output?.error) lines.push(`Search unavailable: ${output.error}`)
   if (Array.isArray(output?.results)) {
     output.results.forEach((item, i) => {
-      lines.push(`${i + 1}. ${item.title}${item.url ? ` — ${item.url}` : ''}`)
+      lines.push(`${i + 1}. ${item.title}${item.url ? ` - ${item.url}` : ''}`)
       if (item.snippet) lines.push(item.snippet)
     })
   }
@@ -68,13 +68,21 @@ function formatMapPathway(input, output) {
 
 function formatAnalyzeSkillsGap(input, output) {
   const lines = []
-  if (input?.targetRole) lines.push(`Comparing against: ${input.targetRole}`)
+  if (input?.targetRole) lines.push(`Career interest: ${input.targetRole}`)
+  if (output?.pathwayRole?.title) {
+    lines.push(`Industry role: ${output.pathwayRole.title}`)
+  }
+  if (output?.requiredLevelLabel) {
+    lines.push(`Required proficiency: ${output.requiredLevelLabel}`)
+  }
   if (Array.isArray(output?.strengths) && output.strengths.length) {
-    lines.push(`Strengths: ${output.strengths.join(', ')}`)
+    lines.push(`Met: ${output.strengths.join(', ')}`)
+  }
+  if (Array.isArray(output?.upskills) && output.upskills.length) {
+    lines.push(`Upskill: ${output.upskills.join(', ')}`)
   }
   if (Array.isArray(output?.gaps) && output.gaps.length) {
-    lines.push('Gaps to close:')
-    output.gaps.forEach((gap, i) => lines.push(`${i + 1}. ${gap}`))
+    lines.push(`Gaps: ${output.gaps.join(', ')}`)
   }
   return asLines(lines)
 }
