@@ -88,8 +88,12 @@ async function main() {
     await call(path, { expect: 401 })
   }
   await call('/onboarding', { method: 'POST', body: {}, expect: 401 })
+  await call('/onboarding/programme-suggestions', { method: 'POST', body: {}, expect: 401 })
   await call('/agent/chat', { method: 'POST', body: {}, expect: 401 })
   await call('/skills-gap/analyze', { method: 'POST', body: { targetRole: 'x' }, expect: 401 })
+  await call('/career-pathways/current', { expect: 401 })
+  await call('/career-pathways/generate', { method: 'POST', body: {}, expect: 401 })
+  await call('/career-pathways/1', { method: 'PATCH', body: { steps: [] }, expect: 401 })
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -139,15 +143,24 @@ async function main() {
   if (!token) throw new Error('No access token')
 
   await call('/me', { token })
+  await call('/onboarding/programme-suggestions', {
+    token,
+    method: 'POST',
+    body: {
+      courseCatalogId: 'OTHER',
+      programmeLabel: 'Musical Arts',
+    },
+  })
   await call('/onboarding', {
     token,
     method: 'POST',
     body: {
-      course: 'BBIT',
+      course: 'Bachelor of Business Information Technology (BBIT)',
+      courseCatalogId: 'BBIT',
       yearOfStudy: 3,
-      technicalSkills: { Python: 4, SQL: 3 },
+      technicalSkills: { Python: 4, SQL: 3, 'Custom Smoke Skill': 4 },
       softSkills: { Communication: 4, Teamwork: 3 },
-      careerInterests: ['Data', 'Software'],
+      careerInterests: ['Data Science', 'Custom Interest From Smoke'],
       careerReadiness: 'PREPARING',
     },
   })

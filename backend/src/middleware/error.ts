@@ -32,7 +32,11 @@ export function supabaseError(error: { message: string; code?: string; details?:
     return new HttpError(404, 'Not found', code)
   }
   if (code === '42501' || error.message.toLowerCase().includes('row-level security')) {
-    return new HttpError(403, 'Forbidden', code)
+    const detail =
+      error.message && !/row-level security/i.test(error.message)
+        ? error.message
+        : 'Database permission denied (row-level security).'
+    return new HttpError(403, detail, code, error.details)
   }
   if (code === '23505') {
     return new HttpError(409, 'Already exists', code, error.details)

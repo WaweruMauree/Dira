@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { asyncHandler, HttpError } from '../middleware/error.js'
-import { getStudentContext, throwIfError } from '../lib/helpers.js'
+import { getStudentContext, parsePaging, throwIfError } from '../lib/helpers.js'
+import {
+  buildOpportunitySkillsReport,
+  buildSkillsAnalysisReport,
+} from '../services/skillsAnalysisReport.js'
 
 const analyzeSchema = z
   .object({
@@ -14,6 +18,60 @@ const analyzeSchema = z
 
 export const skillsGapRouter = Router()
 
+skillsGapRouter.get(
+  '/analyses',
+  asyncHandler(async (req, res) => {
+    const { studentProfile } = await getStudentContext(req)
+    if (!studentProfile) throw new HttpError(400, 'Complete onboarding first')
+    const profileId = (studentProfile as { profile_id: number }).profile_id
+    const { limit, offset } = parsePaging(req)
+    const { data, error, count } = await req.supabase
+      .from('skills_gap_analyses')
+      .select('*', { count: 'exact' })
+      .eq('profile_id', profileId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+    throwIfError(error)
+    res.json({ data: data ?? [], count: count ?? 0, limit, offset })
+  })
+)
+
+skillsGapRouter.get(
+  '/latest',
+  asyncHandler(async (req, res) => {
+    const { studentProfile } = await getStudentContext(req)
+    if (!studentProfile) throw new HttpError(400, 'Complete onboarding first')
+    const profileId = (studentProfile as { profile_id: number }).profile_id
+    const targetRole =
+      typeof req.query.targetRole === 'string' && req.query.targetRole.trim()
+        ? req.query.targetRole.trim()
+        : null
+
+    let query = req.supabase
+      .from('skills_gap_analyses')
+      .select('*')
+      .eq('profile_id', profileId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (targetRole) query = query.eq('target_role', targetRole)
+
+    const { data, error } = await query.maybeSingle()
+    throwIfError(error)
+    if (!data) {
+      res.json({ data: null })
+      return
+    }
+    res.json({
+      data: {
+        ...(typeof data.report === 'object' && data.report ? data.report : {}),
+        saved: data,
+        methodology: data.methodology,
+      },
+    })
+  })
+)
+
 skillsGapRouter.post(
   '/analyze',
   asyncHandler(async (req, res) => {
@@ -24,84 +82,68 @@ skillsGapRouter.post(
     }
     const profileId = (studentProfile as { profile_id: number }).profile_id
 
-    const { data: studentSkills, error: ssError } = await req.supabase
-      .from('student_skills')
-      .select('skill_id, proficiency_level, skills (name, category)')
-      .eq('profile_id', profileId)
-    throwIfError(ssError)
-
-    const have = new Map<number, { name: string; level: number }>()
-    for (const row of studentSkills ?? []) {
-      const skill = row.skills as { name?: string } | null
-      have.set(row.skill_id as number, {
-        name: skill?.name ?? String(row.skill_id),
-        level: row.proficiency_level as number,
-      })
-    }
-
-    let required: { skill_id: number; name: string }[] = []
-    let opportunityId = body.opportunityId ?? null
+    let report: Record<string, unknown>
+    let methodology: Record<string, unknown>
 
     if (body.opportunityId) {
-      const { data: oppSkills, error } = await req.supabase
-        .from('opportunity_skills')
-        .select('skill_id, skills (name)')
-        .eq('opportunity_id', body.opportunityId)
-      throwIfError(error)
-      required = (oppSkills ?? []).map((row) => ({
-        skill_id: row.skill_id as number,
-        name: (row.skills as { name?: string } | null)?.name ?? String(row.skill_id),
-      }))
-    } else if (body.targetRole) {
-      const { data: roles, error: roleError } = await req.supabase
-        .from('pathway_roles')
-        .select('role_id, title')
-        .ilike('title', `%${body.targetRole}%`)
-        .limit(1)
-      throwIfError(roleError)
-      const role = roles?.[0]
-      if (!role) throw new HttpError(404, `No pathway role matching "${body.targetRole}"`)
-      const { data: roleSkills, error } = await req.supabase
-        .from('pathway_role_skills')
-        .select('skill_id, skills (name)')
-        .eq('role_id', role.role_id)
-      throwIfError(error)
-      required = (roleSkills ?? []).map((row) => ({
-        skill_id: row.skill_id as number,
-        name: (row.skills as { name?: string } | null)?.name ?? String(row.skill_id),
-      }))
+      const built = await buildOpportunitySkillsReport(req.supabase, profileId, body.opportunityId)
+      report = built.report as Record<string, unknown>
+      methodology = built.methodology as Record<string, unknown>
+    } else {
+      const built = await buildSkillsAnalysisReport(req.supabase, profileId, body.targetRole!)
+      report = built.report as Record<string, unknown>
+      methodology = built.methodology as Record<string, unknown>
     }
 
-    const strengths = [...have.values()].map((s) => s.name)
-    const gaps = required.filter((s) => !have.has(s.skill_id)).map((s) => s.name)
-    const analysis = {
-      required_skills: required,
+    const legacyRequired = (report.skills as Array<{ skillId: number; name: string }> | undefined)?.map(
+      (s) => ({ skill_id: s.skillId, name: s.name })
+    ) ?? []
+    const gaps = (report.gaps as string[]) ?? []
+    const prioritisedPlan = (report.prioritisedPlan as unknown[]) ?? []
+
+    const insertRow: Record<string, unknown> = {
+      profile_id: profileId,
+      required_skills: legacyRequired,
       gaps,
-      strengths,
-      prioritised_plan: gaps.map((name, i) => ({
-        order: i + 1,
-        skill: name,
-        action: `Build ${name} through a course or project before applying`,
-      })),
+      prioritised_plan: prioritisedPlan,
+      report,
+      methodology,
     }
 
-    let saved = null
-    if (opportunityId) {
-      const { data, error } = await req.supabase
-        .from('skills_gap_analyses')
-        .insert({
-          profile_id: profileId,
-          opportunity_id: opportunityId,
-          required_skills: analysis.required_skills,
-          gaps: analysis.gaps,
-          prioritised_plan: analysis.prioritised_plan,
-        })
-        .select('*')
-        .single()
-      throwIfError(error)
-      saved = data
+    if (body.opportunityId) {
+      insertRow.opportunity_id = body.opportunityId
+    } else {
+      insertRow.target_role = body.targetRole
+      const pr = report.pathwayRole as { roleId?: number } | null
+      if (pr?.roleId) insertRow.pathway_role_id = pr.roleId
     }
 
-    res.status(201).json({ data: { ...analysis, saved } })
+    const { data: saved, error: saveError } = await req.supabase
+      .from('skills_gap_analyses')
+      .insert(insertRow)
+      .select('*')
+      .single()
+
+    if (saveError) {
+      console.warn('[skills-gap/analyze] Could not persist analysis:', saveError.message, saveError.code)
+      res.status(201).json({
+        data: {
+          ...report,
+          methodology,
+          saved: null,
+          persistWarning:
+            'Report generated but could not be saved. Apply migration 007_skills_gap_role_report.sql for persistence.',
+        },
+      })
+      return
+    }
+
+    res.status(201).json({
+      data: {
+        ...report,
+        methodology,
+        saved,
+      },
+    })
   })
 )

@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources/chat/completio
 import { env } from '../config/env.js'
 import { createOpenRouterClient, hasOpenRouter } from '../lib/openrouter.js'
 import { HttpError } from '../middleware/error.js'
+import { sanitizeAiPunctuation } from '../lib/copyStyle.js'
 import { MODE_SYSTEM, resolveTools } from '../lib/toolSchemas.js'
 import { throwIfError } from '../lib/helpers.js'
 
@@ -202,12 +203,13 @@ export async function runAgentTurn(opts: {
       input: parseArgs(tc.function.arguments),
     }))
 
+    const toolRoundContent = sanitizeAiPunctuation(choice.message.content ?? '')
     const { data: assistantRow, error } = await opts.supabase
       .from('conversation_messages')
       .insert({
         conversation_id: conversationId,
         role: 'assistant',
-        content: choice.message.content ?? '',
+        content: toolRoundContent,
         tool_calls: pending,
       })
       .select('*')
@@ -230,7 +232,9 @@ export async function runAgentTurn(opts: {
     }
   }
 
-  const content = choice.message.content?.trim() || 'I did not produce a reply. Please try again.'
+  const content =
+    sanitizeAiPunctuation(choice.message.content?.trim() || '') ||
+    'I did not produce a reply. Please try again.'
   const { data: assistantRow, error } = await opts.supabase
     .from('conversation_messages')
     .insert({

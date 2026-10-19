@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { createUserClient } from '../lib/supabase.js'
 import { asyncHandler, HttpError } from './error.js'
 import type { ProfileRow } from '../types/express.js'
+import { ensureProfileForAuthUser } from '../lib/ensureProfile.js'
 
 export const requireAuth = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const header = req.headers.authorization
@@ -16,7 +17,7 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
     throw new HttpError(401, 'Invalid or expired token')
   }
 
-  const { data: profile, error: profileError } = await supabase
+  let { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', data.user.id)
@@ -25,6 +26,16 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   if (profileError) {
     throw new HttpError(400, profileError.message, profileError.code)
   }
+
+  if (!profile) {
+    await ensureProfileForAuthUser(data.user)
+    const refetch = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle()
+    if (refetch.error) {
+      throw new HttpError(400, refetch.error.message, refetch.error.code)
+    }
+    profile = refetch.data
+  }
+
   if (!profile) {
     throw new HttpError(403, 'Profile not found')
   }
