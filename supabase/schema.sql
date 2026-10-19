@@ -31,6 +31,11 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
+  CREATE TYPE public.avatar_kind AS ENUM ('jazzicon', 'upload');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
   CREATE TYPE public.skill_category AS ENUM ('TECH', 'SOFT', 'DOMAIN');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
@@ -135,6 +140,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   admission_number VARCHAR(50),
   role             public.user_role NOT NULL DEFAULT 'STUDENT',
   status           public.user_status NOT NULL DEFAULT 'ACTIVE',
+  avatar_kind      public.avatar_kind NOT NULL DEFAULT 'jazzicon',
+  avatar_url       TEXT,
+  jazzicon_seed    TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -160,6 +168,7 @@ CREATE TABLE IF NOT EXISTS public.student_profiles (
   career_readiness     public.career_readiness,
   bio                  TEXT,
   career_goal          VARCHAR(255),
+  career_search_feedback TEXT,
   profile_completeness INT NOT NULL DEFAULT 0 CHECK (profile_completeness BETWEEN 0 AND 100),
   onboarded            BOOLEAN NOT NULL DEFAULT false,
   profile_embedding    vector(384),
@@ -226,10 +235,14 @@ CREATE TABLE IF NOT EXISTS public.match_results (
 CREATE TABLE IF NOT EXISTS public.skills_gap_analyses (
   analysis_id        BIGSERIAL PRIMARY KEY,
   profile_id         BIGINT NOT NULL REFERENCES public.student_profiles(profile_id) ON DELETE CASCADE,
-  opportunity_id     BIGINT NOT NULL REFERENCES public.opportunities(opportunity_id) ON DELETE CASCADE,
+  opportunity_id     BIGINT REFERENCES public.opportunities(opportunity_id) ON DELETE CASCADE,
+  target_role        TEXT,
+  pathway_role_id    BIGINT REFERENCES public.pathway_roles(role_id) ON DELETE SET NULL,
   required_skills    JSONB NOT NULL,
   gaps               JSONB NOT NULL,
   prioritised_plan   JSONB NOT NULL,
+  report             JSONB NOT NULL DEFAULT '{}'::jsonb,
+  methodology        JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -347,6 +360,7 @@ CREATE INDEX IF NOT EXISTS idx_match_results_opportunity_id ON public.match_resu
 CREATE INDEX IF NOT EXISTS idx_match_results_profile_rank ON public.match_results(profile_id, rank);
 CREATE INDEX IF NOT EXISTS idx_skills_gap_profile_id ON public.skills_gap_analyses(profile_id);
 CREATE INDEX IF NOT EXISTS idx_skills_gap_opportunity_id ON public.skills_gap_analyses(opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_skills_gap_profile_created ON public.skills_gap_analyses(profile_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pathway_role_skills_skill_id ON public.pathway_role_skills(skill_id);
 CREATE INDEX IF NOT EXISTS idx_career_pathways_profile_id ON public.career_pathways(profile_id);
 CREATE INDEX IF NOT EXISTS idx_career_pathways_target_role_id ON public.career_pathways(target_role_id);
@@ -730,6 +744,18 @@ CREATE POLICY career_pathways_insert ON public.career_pathways
     OR profile_id = public.current_student_profile_id()
   );
 
+DROP POLICY IF EXISTS career_pathways_update ON public.career_pathways;
+CREATE POLICY career_pathways_update ON public.career_pathways
+  FOR UPDATE TO authenticated
+  USING (
+    public.is_admin()
+    OR profile_id = public.current_student_profile_id()
+  )
+  WITH CHECK (
+    public.is_admin()
+    OR profile_id = public.current_student_profile_id()
+  );
+
 -- === INTERACTIONS & SAVED ===
 DROP POLICY IF EXISTS profile_interactions_all ON public.profile_interactions;
 CREATE POLICY profile_interactions_all ON public.profile_interactions
@@ -972,4 +998,77 @@ DROP POLICY IF EXISTS students_update_own ON public.students;
 CREATE POLICY students_update_own ON public.students
   FOR UPDATE TO authenticated
   USING (user_id = auth.uid() OR public.is_admin())
+  WITH CHECK (user_id = auth.uid() OR public.is_admin());
+
+-- === 005 profile avatars (storage) ===
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'avatars',
+  'avatars',
+  true,
+  2097152,
+  ARRAY['image/jpeg', 'image/png', 'image/webp']::text[]
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS avatars_public_read ON storage.objects;
+CREATE POLICY avatars_public_read ON storage.objects
+  FOR SELECT TO public
+  USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS avatars_insert_own ON storage.objects;
+CREATE POLICY avatars_insert_own ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+DROP POLICY IF EXISTS avatars_update_own ON storage.objects;
+CREATE POLICY avatars_update_own ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  )
+  WITH CHECK (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+DROP POLICY IF EXISTS avatars_delete_own ON storage.objects;
+CREATE POLICY avatars_delete_own ON storage.objects
+  FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- === 006 user job views (apply / link history) ===
+CREATE TABLE IF NOT EXISTS public.user_job_views (
+  id           BIGSERIAL PRIMARY KEY,
+  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_job_id  BIGINT REFERENCES public.user_jobs(id) ON DELETE SET NULL,
+  title        VARCHAR(255) NOT NULL,
+  organisation VARCHAR(200),
+  url          TEXT NOT NULL,
+  source       TEXT,
+  viewed_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_job_views_user ON public.user_job_views(user_id, viewed_at DESC);
+
+ALTER TABLE public.user_job_views ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS user_job_views_select_own ON public.user_job_views;
+CREATE POLICY user_job_views_select_own ON public.user_job_views
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.is_admin());
+
+DROP POLICY IF EXISTS user_job_views_insert_own ON public.user_job_views;
+CREATE POLICY user_job_views_insert_own ON public.user_job_views
+  FOR INSERT TO authenticated
   WITH CHECK (user_id = auth.uid() OR public.is_admin());

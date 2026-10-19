@@ -12,6 +12,14 @@ PostgreSQL schema for the Dira career guidance platform, mapped from the **16866
 | [`migrations/002_rls_policies.sql`](migrations/002_rls_policies.sql) | RLS policies | After 001 if using split migrations |
 | [`migrations/003_seed_data.sql`](migrations/003_seed_data.sql) | Starter data | After schema on empty DB |
 | [`migrations/004_conversations.sql`](migrations/004_conversations.sql) | Conversations, user_jobs, CVs, salary estimates | After 001–003 on an existing project |
+| [`migrations/005_profile_avatar.sql`](migrations/005_profile_avatar.sql) | Profile avatar columns + `avatars` Storage bucket | After 004 on an existing project |
+| [`migrations/006_user_job_views.sql`](migrations/006_user_job_views.sql) | Persistent job listing view history (Apply clicks) | After 005 on an existing project |
+| [`migrations/007_skills_gap_role_report.sql`](migrations/007_skills_gap_role_report.sql) | Skills gap reports per career interest (JSON report + methodology) | After 006 on an existing project |
+| [`migrations/008_profiles_phone_unique.sql`](migrations/008_profiles_phone_unique.sql) | Unique index on `profiles.phone_number` (Kenyan E.164 at signup) | After 007; dedupe existing phones first |
+| [`migrations/009_career_search_feedback.sql`](migrations/009_career_search_feedback.sql) | Optional job-search feedback from onboarding step 4 | After 008; internal/admin use, not on profile UI |
+| [`migrations/010_career_pathways_update.sql`](migrations/010_career_pathways_update.sql) | UPDATE policy on `career_pathways` for student work-plan edits | After 009 on an existing project |
+
+**Signup phone numbers:** Store as E.164 (`+2547XXXXXXXX`). The API checks duplicates before signup; migration 008 prevents race duplicates at the database.
 
 ## Quick start (Supabase SQL Editor)
 
@@ -25,7 +33,20 @@ PostgreSQL schema for the Dira career guidance platform, mapped from the **16866
 **After running:**
 1. Enable **Email** auth under Authentication → Providers
 2. Sign up a test student — verify `profiles` and `students` rows are created automatically
-3. Point your TypeScript backend at the Supabase Postgres connection string (service role for writes)
+3. Point your TypeScript backend at the Supabase project URL and keys. **Onboarding via the Express API requires `SUPABASE_SERVICE_ROLE_KEY`** in `backend/.env` (Dashboard → Settings → API → service_role). The API verifies the user JWT, then writes with the service role so RLS gaps (e.g. missing `students` UPDATE policy) do not block Complete Setup.
+
+**Profiles on signup:** New users need the `handle_new_user` trigger from `schema.sql` (creates `profiles` + `students`/`admins`). If an auth user exists without a profile row (partial signup, old session, or trigger never applied), the Express API can **bootstrap** a profile on the first authenticated request when `SUPABASE_SERVICE_ROLE_KEY` is set—this mirrors the trigger but is not a substitute for running the schema in production.
+
+**Optional (direct client writes):** If the browser ever updates `students.course` under the user JWT, apply the policy from [`migrations/004_conversations.sql`](migrations/004_conversations.sql) (`students_update_own`).
+
+**Profile photos:** Run [`migrations/005_profile_avatar.sql`](migrations/005_profile_avatar.sql) so `profiles.avatar_kind`, `avatar_url`, and `jazzicon_seed` exist and the public `avatars` bucket allows users to upload `{user_id}/avatar.webp`.
+
+**Onboarding (Complete Setup) checklist** — if you see errors like *Could not find the 'jazzicon_seed' column* or failures saving step 4 feedback, run these on your existing project (in order, after prior migrations):
+
+1. [`migrations/005_profile_avatar.sql`](migrations/005_profile_avatar.sql) — `profiles.jazzicon_seed` (required for avatar seed on Complete Setup)
+2. [`migrations/009_career_search_feedback.sql`](migrations/009_career_search_feedback.sql) — `student_profiles.career_search_feedback` (optional “Your voice” step 4)
+
+After DDL, reload the PostgREST schema if the Supabase dashboard prompts you. The API also skips a missing `jazzicon_seed` column gracefully, but avatars and migrations should still be applied in production.
 
 ## Auth mapping (ER Users → Supabase)
 
@@ -128,3 +149,4 @@ Pass metadata at signup (via Supabase Auth):
 - Embeddings use `vector(384)` via pgvector (MiniLM). Requires `CREATE EXTENSION vector` (enabled in schema).
 - RLS is enabled on all public tables. The TypeScript backend should use the **service role** key for server-side writes.
 - `student_skills.proficiency_type` maps ER `proficiency ENUM('SELF_ASSESSED')`; level stored separately as `proficiency_level` (1–5) for onboarding.
+- **Skills Analysis (migration 007):** Run [`migrations/007_skills_gap_role_report.sql`](migrations/007_skills_gap_role_report.sql) so analyses persist and `GET /skills-gap/analyses` / `latest` work. Without 007, the API still returns a fresh report from `POST /skills-gap/analyze`, but rows are not stored.

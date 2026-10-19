@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS public.student_profiles (
   career_readiness     public.career_readiness,
   bio                  TEXT,
   career_goal          VARCHAR(255),
+  career_search_feedback TEXT,
   profile_completeness INT NOT NULL DEFAULT 0 CHECK (profile_completeness BETWEEN 0 AND 100),
   onboarded            BOOLEAN NOT NULL DEFAULT false,
   profile_embedding    vector(384),
