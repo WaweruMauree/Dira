@@ -1,0 +1,79 @@
+import { Button } from '@/components/ui/button'
+import PathwayPlanEditor from '@/components/pathway/PathwayPlanEditor'
+import SkillsCuratedResources from '@/components/skills/SkillsCuratedResources'
+
+export default function PathwayStepPanel({
+  step,
+  onSaveStep,
+  onSetStatus,
+  onViewResources,
+  curatedResources = [],
+  showResources = false,
+  saveError,
+}) {
+  if (!step) {
+    return (
+      <div className="rounded-xl border border-dashed border-hairline p-8 text-center text-sm text-muted">
+        Select a step on the timeline to view details.
+      </div>
+    )
+  }
+
+  const duration =
+    step.suggestedDurationWeeks != null ? `${step.suggestedDurationWeeks} weeks (suggested)` : null
+
+  return (
+    <div className="rounded-xl border border-hairline bg-card-bg p-6 shadow-card space-y-5">
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1">
+          Step {step.order}
+        </p>
+        <h2 className="font-heading text-xl font-medium text-ink">{step.title}</h2>
+        {step.description && <p className="text-sm text-muted mt-2">{step.description}</p>}
+        {duration && <p className="text-xs text-muted mt-2">Estimated time: {duration}</p>}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {step.status !== 'in_progress' && step.status !== 'complete' && (
+          <Button type="button" size="sm" onClick={() => onSetStatus(step.id, 'in_progress')}>
+            Mark step in progress
+          </Button>
+        )}
+        {step.status !== 'complete' && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onSetStatus(step.id, 'complete')}
+          >
+            Mark complete
+          </Button>
+        )}
+        {step.status === 'complete' && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onSetStatus(step.id, 'not_started')}
+          >
+            Reset step
+          </Button>
+        )}
+        <Button type="button" size="sm" variant="ghost" onClick={() => onViewResources(step.skillName)}>
+          View linked resources
+        </Button>
+      </div>
+
+      <PathwayPlanEditor step={step} onChange={onSaveStep} saveError={saveError} />
+
+      {showResources && curatedResources.length > 0 && (
+        <div id="pathway-linked-resources" className="pt-2 border-t border-hairline">
+          <p className="font-medium text-sm text-ink mb-2">
+            Resources for {step.skillName}
+          </p>
+          <SkillsCuratedResources resources={curatedResources} />
+        </div>
+      )}
+    </div>
+  )
+}
