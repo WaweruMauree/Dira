@@ -1,6 +1,19 @@
 import { apiFetch } from './client'
 import { API_ENDPOINTS } from './endpoints'
-import type { AgentMode, MePayload, Paged, UserJobInput } from './types'
+import type {
+  AdminAggregationRun,
+  AdminAuditLogRow,
+  AdminPendingReview,
+  AdminStudentRow,
+  AdminUsageReport,
+  AgentMode,
+  CareerPathwayRecord,
+  CareerPathwayStep,
+  MePayload,
+  Paged,
+  SkillsAnalysisReport,
+  UserJobInput,
+} from './types'
 
 function queryString(params?: Record<string, string | number | boolean | undefined>) {
   if (!params) return ''
@@ -37,14 +50,79 @@ export function resourceClient(base: string) {
 }
 
 export const diraApi = {
+  getHealth() {
+    return apiFetch<{
+      status: string
+      features?: { openRouter?: boolean; exa?: boolean }
+    }>(API_ENDPOINTS.health)
+  },
+  checkSignupAvailability(body: { email?: string; phone?: string }) {
+    return apiFetch<{ emailTaken?: boolean; phoneTaken?: boolean }>(API_ENDPOINTS.authAvailability, {
+      method: 'POST',
+      body,
+    })
+  },
+  fetchSkillProficiencyRubrics(
+    token: string,
+    body: {
+      courseCatalogId: string
+      courseLabel?: string
+      items: Array<{ skillName: string; category: 'TECHNICAL' | 'SOFT' }>
+    }
+  ) {
+    return apiFetch<{
+      rubrics: Record<
+        string,
+        {
+          skillName: string
+          category: 'TECHNICAL' | 'SOFT'
+          levels: Record<'1' | '3' | '5', { summary: string; criteria: string[] }>
+        }
+      >
+    }>(API_ENDPOINTS.skillsProficiencyRubrics, { method: 'POST', token, body })
+  },
   me(token: string) {
     return apiFetch<{ data: MePayload }>(API_ENDPOINTS.me, { token })
   },
   patchMe(token: string, body: Record<string, unknown>) {
     return apiFetch<{ data: MePayload['profile'] }>(API_ENDPOINTS.me, { method: 'PATCH', token, body })
   },
+  patchStudentProfileBio(token: string, bio: string) {
+    return apiFetch<{ data: Record<string, unknown> }>(API_ENDPOINTS.meStudentProfile, {
+      method: 'PATCH',
+      token,
+      body: { bio },
+    })
+  },
+  patchStudentProfile(token: string, body: Record<string, unknown>) {
+    return apiFetch<{ data: Record<string, unknown> }>(API_ENDPOINTS.meStudentProfile, {
+      method: 'PATCH',
+      token,
+      body,
+    })
+  },
   onboarding(token: string, body: Record<string, unknown>) {
-    return apiFetch(API_ENDPOINTS.onboarding, { method: 'POST', token, body })
+    return apiFetch<{
+      data: {
+        student: Record<string, unknown>
+        studentProfile: Record<string, unknown>
+        onboarded: boolean
+      }
+    }>(API_ENDPOINTS.onboarding, { method: 'POST', token, body })
+  },
+  fetchProgrammeSuggestions(
+    token: string,
+    body: { courseCatalogId: string; programmeLabel: string }
+  ) {
+    return apiFetch<{
+      data: {
+        technicalSkills: string[]
+        softSkills: string[]
+        careerInterests: string[]
+        programmeSector?: string | null
+        source: 'ai' | 'fallback'
+      }
+    }>(API_ENDPOINTS.onboardingProgrammeSuggestions, { method: 'POST', token, body })
   },
   listConversations(token: string) {
     return apiFetch<
@@ -80,6 +158,18 @@ export const diraApi = {
   listUserJobs(token: string, params?: Record<string, string | number | boolean | undefined>) {
     return resourceClient(API_ENDPOINTS.userJobs).list(token, params)
   },
+  getJobFeed(token: string, params?: Record<string, string | number | boolean | undefined>) {
+    return apiFetch<Paged<Array<Record<string, unknown>>>>(`${API_ENDPOINTS.userJobs}/feed${queryString(params)}`, {
+      token,
+    })
+  },
+  recommendJobs(token: string, force = false) {
+    const qs = force ? '?force=true' : ''
+    return apiFetch<{ data: Array<Record<string, unknown>>; cached?: boolean }>(
+      `${API_ENDPOINTS.userJobs}/recommend${qs}`,
+      { method: 'POST', token, body: {} }
+    )
+  },
   upsertUserJobs(token: string, jobs: UserJobInput[]) {
     return apiFetch<{ data: Array<{ id: number } & UserJobInput> }>(API_ENDPOINTS.userJobs, {
       method: 'POST',
@@ -92,6 +182,16 @@ export const diraApi = {
   },
   patchUserJob(token: string, id: number, body: { saved?: boolean }) {
     return apiFetch(`${API_ENDPOINTS.userJobs}/${id}`, { method: 'PATCH', token, body })
+  },
+  listJobViews(token: string) {
+    return apiFetch<{ data: Array<Record<string, unknown>> }>(`${API_ENDPOINTS.userJobs}/views`, { token })
+  },
+  recordJobView(token: string, jobId: number) {
+    return apiFetch<{ data: Record<string, unknown> }>(`${API_ENDPOINTS.userJobs}/${jobId}/view`, {
+      method: 'POST',
+      token,
+      body: {},
+    })
   },
   deleteUserJob(token: string, id: number) {
     return resourceClient(API_ENDPOINTS.userJobs).remove(token, id)
@@ -124,7 +224,92 @@ export const diraApi = {
     return apiFetch(`${API_ENDPOINTS.pathwaysMap}?targetRole=${encodeURIComponent(targetRole)}`, { token })
   },
   analyzeSkillsGap(token: string, body: { targetRole?: string; opportunityId?: number }) {
-    return apiFetch(API_ENDPOINTS.skillsGapAnalyze, { method: 'POST', token, body })
+    return apiFetch<{ data: SkillsAnalysisReport }>(API_ENDPOINTS.skillsGapAnalyze, {
+      method: 'POST',
+      token,
+      body,
+    })
+  },
+  listSkillsGapAnalyses(token: string, params?: Record<string, string | number | boolean | undefined>) {
+    return apiFetch<Paged<Array<Record<string, unknown>>>>(`${API_ENDPOINTS.skillsGapAnalysesList}${queryString(params)}`, {
+      token,
+    })
+  },
+  getLatestSkillsAnalysis(token: string, targetRole?: string) {
+    const qs = targetRole ? `?targetRole=${encodeURIComponent(targetRole)}` : ''
+    return apiFetch<{ data: SkillsAnalysisReport | null }>(`${API_ENDPOINTS.skillsGapLatest}${qs}`, { token })
+  },
+  getCurrentCareerPathway(token: string, targetRole?: string) {
+    const qs = targetRole ? `?targetRole=${encodeURIComponent(targetRole)}` : ''
+    return apiFetch<{ data: CareerPathwayRecord | null }>(
+      `${API_ENDPOINTS.careerPathwaysCurrent}${qs}`,
+      { token }
+    )
+  },
+  generateCareerPathway(token: string, body?: { targetRole?: string }) {
+    return apiFetch<{ data: CareerPathwayRecord }>(API_ENDPOINTS.careerPathwaysGenerate, {
+      method: 'POST',
+      token,
+      body: body ?? {},
+    })
+  },
+  patchCareerPathway(
+    token: string,
+    pathwayId: number,
+    body: { steps?: Array<Partial<CareerPathwayStep> & { id: string }> }
+  ) {
+    return apiFetch<{ data: CareerPathwayRecord }>(`${API_ENDPOINTS.careerPathways}/${pathwayId}`, {
+      method: 'PATCH',
+      token,
+      body,
+    })
+  },
+  adminGetDashboardSummary(token: string) {
+    return apiFetch<{
+      data: {
+        totalStudents: number
+        pendingListings: number
+        flaggedItems: number
+        activeSessions: number
+      }
+    }>(API_ENDPOINTS.adminDashboardSummary, { token })
+  },
+  adminGetPendingReviews(token: string) {
+    return apiFetch<{ data: AdminPendingReview[] }>(API_ENDPOINTS.adminPendingReviews, { token })
+  },
+  adminApproveReview(token: string, entityType: string, id: number) {
+    return apiFetch<{ data: { ok: boolean } }>(
+      `/api/v1/admin/dashboard/reviews/${entityType}/${id}/approve`,
+      { method: 'POST', token }
+    )
+  },
+  adminRejectReview(token: string, entityType: string, id: number) {
+    return apiFetch<{ data: { ok: boolean } }>(
+      `/api/v1/admin/dashboard/reviews/${entityType}/${id}/reject`,
+      { method: 'POST', token }
+    )
+  },
+  adminListStudents(token: string, params?: Record<string, string | number | undefined>) {
+    return apiFetch<Paged<AdminStudentRow[]>>(`${API_ENDPOINTS.adminStudents}${queryString(params)}`, { token })
+  },
+  adminPatchStudentStatus(token: string, userId: string, status: 'ACTIVE' | 'SUSPENDED') {
+    return apiFetch(`${API_ENDPOINTS.adminStudents}/${userId}/status`, {
+      method: 'PATCH',
+      token,
+      body: { status },
+    })
+  },
+  adminListAuditLogs(token: string, params?: Record<string, string | number | undefined>) {
+    return apiFetch<Paged<AdminAuditLogRow[]>>(`${API_ENDPOINTS.adminAuditLogs}${queryString(params)}`, { token })
+  },
+  adminGetUsageReport(token: string) {
+    return apiFetch<{ data: AdminUsageReport }>(API_ENDPOINTS.adminUsageReport, { token })
+  },
+  adminGetSystemPerformance(token: string, params?: Record<string, string | number | undefined>) {
+    return apiFetch<Paged<AdminAggregationRun[]>>(
+      `${API_ENDPOINTS.adminSystemPerformance}${queryString(params)}`,
+      { token }
+    )
   },
   saveCatalogOpportunity(token: string, opportunityId: number) {
     return apiFetch(API_ENDPOINTS.savedOpportunities, {

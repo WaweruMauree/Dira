@@ -100,6 +100,9 @@ export interface MePayload {
     username: string | null
     role: 'STUDENT' | 'ADMIN'
     status: 'ACTIVE' | 'SUSPENDED'
+    avatar_kind?: 'jazzicon' | 'upload' | null
+    avatar_url?: string | null
+    jazzicon_seed?: string | null
   }
   student: { id: number; user_id: string; course: string | null } | null
   studentProfile: {
@@ -115,9 +118,141 @@ export interface MePayload {
   onboarded: boolean
 }
 
+export type PathwayStepStatus = 'not_started' | 'in_progress' | 'complete'
+
+export interface CareerPathwayStep {
+  id: string
+  order: number
+  skillName: string
+  skillId: number | null
+  title: string
+  description?: string
+  suggestedDurationWeeks?: number
+  startDate?: string | null
+  endDate?: string | null
+  upskillActions: string
+  completionKpi: string
+  status: PathwayStepStatus
+  aiSuggested?: boolean
+}
+
+export interface CareerPathwayRoadmap {
+  schemaVersion: 1
+  targetRole: string
+  pathwayRoleId: number | null
+  sourceAnalysisId: number | null
+  generatedAt: string
+  progressSummary: {
+    completedSteps: number
+    totalSteps: number
+    percent: number
+  }
+  steps: CareerPathwayStep[]
+}
+
+export interface CareerPathwayRecord {
+  pathwayId: number
+  profileId: number
+  targetRoleId: number
+  roadmapData: CareerPathwayRoadmap
+  generatedAt: string
+}
+
+export interface SkillsAnalysisReport {
+  targetRole: string
+  pathwayRole: {
+    roleId: number
+    title: string
+    level: string | null
+    matchScore?: number
+    matchMethod?: string
+  } | null
+  skills: Array<{
+    skillId: number
+    name: string
+    category: string | null
+    currentLevel: number | null
+    currentLevelLabel: string
+    requiredLevel: number
+    requiredLevelLabel: string
+    status: 'met' | 'upskill' | 'gap'
+  }>
+  gaps: string[]
+  upskills: string[]
+  strengths: string[]
+  curatedResources: Array<{
+    id: number
+    title: string
+    url: string
+    source: string
+    description: string | null
+    skillId: number | null
+    skillName: string | null
+  }>
+  prioritisedPlan: Array<{
+    order: number
+    skill: string
+    priority: string
+    action: string
+    estimatedTimeLabel?: string
+  }>
+  requiredLevel?: number
+  requiredLevelLabel?: string
+  methodology?: Record<string, unknown>
+  saved?: Record<string, unknown>
+}
+
 export interface Paged<T> {
   data: T
   count?: number
   limit?: number
   offset?: number
+}
+
+export interface AdminPendingReview {
+  id: number
+  entityType: 'community_submission' | 'opportunity'
+  title: string
+  source: string
+  flagReason: string
+  createdAt: string
+}
+
+export interface AdminStudentRow {
+  userId: string
+  fullName: string | null
+  username: string | null
+  phoneNumber: string | null
+  status: string
+  course: string | null
+  onboarded: boolean
+  createdAt: string
+}
+
+export interface AdminAuditLogRow {
+  log_id: number
+  action: string
+  target_entity: string | null
+  target_id: number | null
+  timestamp: string
+  admin_id: number
+}
+
+export interface AdminUsageReport {
+  totalStudents: number
+  totalConversations: number
+  conversationsLast30Days: number
+  totalUserJobs: number
+  totalSkillsAnalyses: number
+  totalSavedOpportunities: number
+}
+
+export interface AdminAggregationRun {
+  id: number
+  started_at: string
+  finished_at: string | null
+  status: string
+  items_found: number
+  errors: unknown
+  opportunity_sources: { name?: string } | null
 }

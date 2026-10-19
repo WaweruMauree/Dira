@@ -22,15 +22,30 @@ type FetchOpts = {
 export async function apiFetch<T = unknown>(path: string, opts: FetchOpts = {}): Promise<T> {
   const { method = 'GET', body, token, headers = {} } = opts
   const url = getAgentApiUrl(path)
-  const res = await fetch(url, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    })
+  } catch (err) {
+    const isNetwork =
+      err instanceof TypeError ||
+      (err instanceof Error && /fetch|network|failed/i.test(err.message))
+    if (isNetwork) {
+      throw new AgentApiError(
+        'Cannot reach the Dira API. Start the backend (cd backend && npm run dev) and check VITE_AGENT_API_URL / FRONTEND_ORIGIN.',
+        0,
+        err
+      )
+    }
+    throw err
+  }
 
   if (!res.ok) {
     let errorBody: { message?: string } = { message: res.statusText }

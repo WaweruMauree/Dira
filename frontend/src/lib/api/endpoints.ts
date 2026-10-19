@@ -1,7 +1,11 @@
 export const API_ENDPOINTS = {
   health: '/api/v1/health',
+  authAvailability: '/api/v1/auth/availability',
   me: '/api/v1/me',
+  meStudentProfile: '/api/v1/me/student-profile',
   onboarding: '/api/v1/onboarding',
+  onboardingProgrammeSuggestions: '/api/v1/onboarding/programme-suggestions',
+  skillsProficiencyRubrics: '/api/v1/skills/proficiency-rubrics',
   agentChat: '/api/v1/agent/chat',
   conversations: '/api/v1/conversations',
   userJobs: '/api/v1/user-jobs',
@@ -9,6 +13,14 @@ export const API_ENDPOINTS = {
   salaryEstimates: '/api/v1/salary-estimates',
   pathwaysMap: '/api/v1/pathways/map',
   skillsGapAnalyze: '/api/v1/skills-gap/analyze',
+  skillsGapAnalysesList: '/api/v1/skills-gap/analyses',
+  skillsGapLatest: '/api/v1/skills-gap/latest',
+  adminDashboardSummary: '/api/v1/admin/dashboard/summary',
+  adminPendingReviews: '/api/v1/admin/dashboard/pending-reviews',
+  adminStudents: '/api/v1/admin/students',
+  adminAuditLogs: '/api/v1/admin/audit-logs',
+  adminUsageReport: '/api/v1/admin/usage-report',
+  adminSystemPerformance: '/api/v1/admin/system/performance',
   profiles: '/api/v1/profiles',
   students: '/api/v1/students',
   studentProfiles: '/api/v1/student-profiles',
@@ -28,6 +40,8 @@ export const API_ENDPOINTS = {
   matchResults: '/api/v1/match-results',
   skillsGapAnalyses: '/api/v1/skills-gap-analyses',
   careerPathways: '/api/v1/career-pathways',
+  careerPathwaysCurrent: '/api/v1/career-pathways/current',
+  careerPathwaysGenerate: '/api/v1/career-pathways/generate',
   profileInteractions: '/api/v1/profile-interactions',
   userInteractions: '/api/v1/user-interactions',
   auditLogs: '/api/v1/audit-logs',
@@ -35,6 +49,9 @@ export const API_ENDPOINTS = {
 } as const
 
 export function getAgentApiUrl(path: string) {
-  const base = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:4000'
-  return `${base.replace(/\/$/, '')}${path}`
+  const base = import.meta.env.VITE_AGENT_API_URL
+  if (base === undefined || base === '') {
+    return path
+  }
+  return `${String(base).replace(/\/$/, '')}${path}`
 }
