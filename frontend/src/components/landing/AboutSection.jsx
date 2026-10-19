@@ -14,7 +14,7 @@ export default function AboutSection() {
           first-generation students cannot easily access.
         </p>
         <p>
-          Dira gives Strathmore undergraduates a personalised, actionable development plan —
+          Dira gives Strathmore undergraduates a personalised, actionable development plan,
           combining adaptive career profiling, opportunity aggregation, skills gap analysis, and
           career pathway guidance in one intelligent platform.
         </p>

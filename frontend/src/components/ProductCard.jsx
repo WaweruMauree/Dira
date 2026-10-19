@@ -21,8 +21,8 @@ function StatusDot({ color }) {
 
 const roles = [
   { id: 'JNR-4821', title: 'Data Analyst Intern', status: 'Matched', statusColor: 'bg-emerald-400', match: 92 },
-  { id: 'JNR-4819', title: 'Junior PM — Fintech', status: 'Applied', statusColor: 'bg-blue-400', match: 87 },
-  { id: 'JNR-4815', title: 'Backend Dev — Health', status: 'Shortlisted', statusColor: 'bg-amber-400', match: 84 },
+  { id: 'JNR-4819', title: 'Junior PM - Fintech', status: 'Applied', statusColor: 'bg-blue-400', match: 87 },
+  { id: 'JNR-4815', title: 'Backend Dev - Health', status: 'Shortlisted', statusColor: 'bg-amber-400', match: 84 },
   { id: 'JNR-4812', title: 'Research Assistant', status: 'Matched', statusColor: 'bg-emerald-400', match: 79 },
 ]
 
@@ -54,7 +54,7 @@ export default function ProductCard() {
             <p className="text-ink text-2xl font-medium">87%</p>
           </div>
 
-          {/* Interview Readiness — highlighted */}
+          {/* Interview Readiness (highlighted) */}
           <div className="px-4 py-4 text-center bg-accent/15">
             <p className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1.5">Interview Readiness</p>
             <p className="text-ink text-2xl font-medium">72%</p>

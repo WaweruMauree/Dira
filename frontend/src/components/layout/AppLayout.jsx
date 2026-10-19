@@ -1,9 +1,11 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Compass, Home, LogOut, MessageSquare, Plus, Briefcase } from 'lucide-react'
+import { Compass, Home, LogOut, MessageSquare, Plus, Briefcase, User, Map } from 'lucide-react'
 import DiraLogo from '@/components/DiraLogo'
 import ThemeToggle from '@/components/ThemeToggle'
+import UserAvatar from '@/components/profile/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthProvider'
+import { getDisplayName } from '@/lib/profile/generateAbout'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,17 +14,40 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { AGENT_MODES } from '@/lib/agent/tools/registry'
 import { cn } from '@/lib/utils'
+import RouterAuthFlashBar from '@/components/auth/RouterAuthFlashBar'
+import { StudentAppDataProvider } from '@/context/StudentAppDataProvider'
 
 const navItems = [
-  { to: '/home', label: 'Home', icon: Home },
-  { to: '/career-guidance/new', label: 'Career Guidance', icon: Compass, mode: 'career_guidance' },
-  { to: '/jobs/new', label: 'Job Search', icon: Briefcase, mode: 'job_aggregation' },
+  { to: '/home', label: 'Home', icon: Home, match: (p) => p === '/home' },
+  { to: '/profile', label: 'Profile', icon: User, match: (p) => p.startsWith('/profile') },
+  {
+    to: '/jobs',
+    label: 'Job Search',
+    icon: Briefcase,
+    mode: 'job_aggregation',
+    match: (p) => p.startsWith('/jobs'),
+  },
+  {
+    to: '/skills-analysis',
+    label: 'Skills Analysis',
+    icon: Compass,
+    mode: 'career_guidance',
+    match: (p) => p.startsWith('/skills-analysis') || p.startsWith('/career-guidance'),
+  },
+  {
+    to: '/career-pathway',
+    label: 'Career Pathway',
+    icon: Map,
+    match: (p) => p.startsWith('/career-pathway'),
+  },
 ]
 
 export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { signOut } = useAuth()
+  const { signOut, profile, meSnapshot } = useAuth()
+
+  const displayName = meSnapshot ? getDisplayName(meSnapshot) : profile?.full_name || 'Student'
 
   const handleSignOut = async () => {
     await signOut()
@@ -38,13 +63,13 @@ export default function AppLayout() {
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon: Icon, match }) => (
             <Link
               key={to}
               to={to}
               className={cn(
                 'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors',
-                location.pathname.startsWith(to.replace('/new', ''))
+                match(location.pathname)
                   ? 'bg-accent/20 text-ink font-medium'
                   : 'text-muted hover:text-ink hover:bg-secondary/50'
               )}
@@ -68,16 +93,25 @@ export default function AppLayout() {
                 <MessageSquare className="h-4 w-4 mr-2" />
                 {AGENT_MODES.general.label}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/career-guidance/new')}>
+              <DropdownMenuItem onClick={() => navigate('/skills-analysis')}>
                 <Compass className="h-4 w-4 mr-2" />
                 {AGENT_MODES.career_guidance.label}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/jobs/new')}>
+              <DropdownMenuItem onClick={() => navigate('/jobs')}>
                 <Briefcase className="h-4 w-4 mr-2" />
                 {AGENT_MODES.job_aggregation.label}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Link
+            to="/profile"
+            className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-secondary/50 transition-colors"
+          >
+            <UserAvatar profile={profile} size={36} />
+            <span className="text-sm font-medium text-ink truncate flex-1">{displayName}</span>
+          </Link>
+
           <div className="flex items-center justify-between px-1">
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sign out">
@@ -94,14 +128,22 @@ export default function AppLayout() {
             <span className="font-medium text-sm">Dira</span>
           </Link>
           <div className="flex items-center gap-1">
+            <Link to="/profile" className="mr-1">
+              <UserAvatar profile={profile} size={32} />
+            </Link>
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={() => navigate('/home')}>
               <Home className="h-4 w-4" />
             </Button>
           </div>
         </header>
-        <main className="flex-1 overflow-hidden">
-          <Outlet />
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <RouterAuthFlashBar />
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <StudentAppDataProvider>
+              <Outlet />
+            </StudentAppDataProvider>
+          </div>
         </main>
       </div>
     </div>

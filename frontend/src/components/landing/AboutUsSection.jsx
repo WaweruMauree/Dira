@@ -10,7 +10,7 @@ export default function AboutUsSection() {
       <div className="bg-card-bg rounded-xl border border-hairline/50 shadow-card p-6 md:p-8 space-y-4">
         <p className="text-muted text-[16px] leading-relaxed">
           Dira is a research project developed at Strathmore University to address the graduate
-          employment challenge facing Kenyan university students — particularly those without
+          employment challenge facing Kenyan university students, particularly those without
           established professional networks.
         </p>
         <p className="text-muted text-[16px] leading-relaxed">
