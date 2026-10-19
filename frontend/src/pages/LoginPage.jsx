@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
 import { useAuth, getPostAuthPath } from '@/context/AuthProvider'
+import { useAuthFormNotice } from '@/context/AuthFormNoticeContext'
 import { clearOnboardingState } from '@/lib/storage'
+import {
+  AUTH_FLASH_LOGIN_SUCCESS,
+  authFlashNavigationState,
+  buildAuthFlash,
+} from '@/lib/auth/authFlash'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,24 +15,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { signIn, isConfigured } = useAuth()
+  const { signIn, isConfigured, profile } = useAuth()
+  const { setFormNotice, clearFormNotice } = useAuthFormNotice()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    clearFormNotice()
     setLoading(true)
-    const { error, onboarded: done } = await signIn({ email, password })
+    const { error, onboarded: done, profile: signedProfile } = await signIn({ email, password })
     setLoading(false)
 
     if (error) {
-      toast.error(error.message || 'Failed to sign in')
+      setFormNotice({ variant: 'error', message: error.message || 'Failed to sign in' })
       return
     }
 
-    toast.success('Welcome back!')
-    navigate(getPostAuthPath(done))
+    const flash = buildAuthFlash('success', AUTH_FLASH_LOGIN_SUCCESS)
+    navigate(getPostAuthPath(signedProfile ?? profile, done), {
+      state: authFlashNavigationState(flash),
+    })
   }
 
   return (
@@ -36,18 +45,36 @@ export default function LoginPage() {
         <CardTitle>Log in</CardTitle>
         <CardDescription>
           Access your career intelligence dashboard.
-          {!isConfigured && ' (Dev mode — any credentials work)'}
+          {!isConfigured && ' (Dev mode - any credentials work)'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                clearFormNotice()
+              }}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                clearFormNotice()
+              }}
+              required
+            />
           </div>
           <Button type="submit" variant="accent" className="w-full" disabled={loading}>
             {loading ? 'Signing in...' : 'Log in'}
@@ -63,7 +90,10 @@ export default function LoginPage() {
             className="w-full mt-4 text-xs text-muted hover:text-ink underline underline-offset-2"
             onClick={() => {
               clearOnboardingState()
-              toast.success('Onboarding progress cleared — sign in to start fresh')
+              setFormNotice({
+                variant: 'success',
+                message: 'Onboarding progress cleared - sign in to start fresh',
+              })
             }}
           >
             Reset onboarding (dev)
