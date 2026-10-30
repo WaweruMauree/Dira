@@ -5,7 +5,10 @@ import { mapPathwayTool, mapPathwayDefinition } from './mapPathway'
 import { analyzeSkillsGapTool, analyzeSkillsGapDefinition } from './analyzeSkillsGap'
 import { profileLookupTool, profileLookupDefinition } from './profileLookup'
 import { buildCvTool, buildCvDefinition } from './buildCv'
+import { cvBuilderTool, cvBuilderDefinition } from './cvBuilder'
 import { salaryEstimatorTool, salaryEstimatorDefinition } from './salaryEstimator'
+import { analyzeUploadedFileTool, analyzeUploadedFileDefinition } from './analyzeUploadedFile'
+import { exportMarkdownDocumentTool, exportMarkdownDocumentDefinition } from './exportMarkdownDocument'
 import type { ClientToolDefinition, ToolName } from '@/lib/api/types'
 
 export const TOOL_METADATA = {
@@ -17,7 +20,10 @@ export const TOOL_METADATA = {
   analyzeSkillsGap: analyzeSkillsGapTool,
   profileLookup: profileLookupTool,
   buildCv: buildCvTool,
+  cvBuilder: cvBuilderTool,
   salaryEstimator: salaryEstimatorTool,
+  analyzeUploadedFile: analyzeUploadedFileTool,
+  exportMarkdownDocument: exportMarkdownDocumentTool,
 }
 
 export const TOOL_DEFINITIONS: Record<string, ClientToolDefinition> = {
@@ -29,7 +35,10 @@ export const TOOL_DEFINITIONS: Record<string, ClientToolDefinition> = {
   analyzeSkillsGap: analyzeSkillsGapDefinition,
   profileLookup: profileLookupDefinition,
   buildCv: buildCvDefinition,
+  cvBuilder: cvBuilderDefinition,
   salaryEstimator: salaryEstimatorDefinition,
+  analyzeUploadedFile: analyzeUploadedFileDefinition,
+  exportMarkdownDocument: exportMarkdownDocumentDefinition,
 }
 
 export function getToolMetadata(name: string) {

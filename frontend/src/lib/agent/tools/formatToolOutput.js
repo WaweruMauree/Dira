@@ -24,6 +24,12 @@ function formatLinkedInJobSearch(input, output) {
 function formatWebSearch(input, output) {
   const lines = []
   if (input?.query) lines.push(`Query: "${input.query}"`)
+  const depth = output?.depth ?? input?.depth
+  if (depth) lines.push(`Depth: ${depth}`)
+  if (output?.source) lines.push(`Source: ${output.source}`)
+  if (Array.isArray(output?.results)) {
+    lines.push(`${output.results.length} result(s)`)
+  }
   if (output?.error) lines.push(`Search unavailable: ${output.error}`)
   if (Array.isArray(output?.results)) {
     output.results.forEach((item, i) => {
@@ -100,10 +106,23 @@ function formatListJobs(input, output) {
 }
 
 function formatBuildCv(_input, output) {
+  return formatCvBuilder(_input, output)
+}
+
+function formatCvBuilder(input, output) {
   const lines = []
+  if (input?.targetRole) lines.push(`Target role: ${input.targetRole}`)
+  if (output?.targetRole) lines.push(`Tailored for: ${output.targetRole}`)
   if (output?.resume?.basics?.name) lines.push(`Name: ${output.resume.basics.name}`)
   if (output?.resume?.basics?.label) lines.push(`Headline: ${output.resume.basics.label}`)
   if (output?.saved) lines.push('CV saved to your profile.')
+  if (Array.isArray(output?.researchSources) && output.researchSources.length) {
+    lines.push('Research sources:')
+    output.researchSources.slice(0, 6).forEach((src, i) => {
+      lines.push(`${i + 1}. ${src.title}${src.url ? ` — ${src.url}` : ''}`)
+    })
+  }
+  if (output?.error) lines.push(String(output.error))
   return asLines(lines)
 }
 
@@ -127,6 +146,22 @@ function formatProfileLookup(_input, output) {
   return asLines(lines)
 }
 
+function formatAnalyzeUpload(_input, output) {
+  const lines = []
+  if (output?.fileName) lines.push(`File: ${output.fileName}`)
+  if (output?.summary) lines.push(output.summary)
+  if (output?.excerpt) lines.push(output.excerpt.slice(0, 280))
+  return asLines(lines)
+}
+
+function formatExportMarkdown(input, output) {
+  const lines = []
+  if (input?.title || output?.title) lines.push(`Title: ${output?.title ?? input?.title}`)
+  if (output?.filename) lines.push(`Filename: ${output.filename}`)
+  if (output?.markdown) lines.push('Markdown document ready to download below.')
+  return asLines(lines)
+}
+
 const FORMATTERS = {
   linkedinJobSearch: formatLinkedInJobSearch,
   listJobs: formatListJobs,
@@ -136,7 +171,10 @@ const FORMATTERS = {
   analyzeSkillsGap: formatAnalyzeSkillsGap,
   profileLookup: formatProfileLookup,
   buildCv: formatBuildCv,
+  cvBuilder: formatCvBuilder,
   salaryEstimator: formatSalary,
+  analyzeUploadedFile: formatAnalyzeUpload,
+  exportMarkdownDocument: formatExportMarkdown,
 }
 
 function flattenObject(obj, prefix = '') {

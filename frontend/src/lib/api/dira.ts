@@ -152,6 +152,19 @@ export const diraApi = {
       token,
     })
   },
+  uploadChatAttachment(
+    token: string,
+    conversationId: string,
+    body: { name: string; mime: string; kind: 'image' | 'document'; dataBase64: string }
+  ) {
+    return apiFetch<{
+      data: { id: string; path: string; mime: string; name: string; kind: string; url: string | null }
+    }>(`${API_ENDPOINTS.conversations}/${conversationId}/attachments`, {
+      method: 'POST',
+      token,
+      body,
+    })
+  },
   createMessage(token: string, id: string, body: Record<string, unknown>) {
     return apiFetch(`${API_ENDPOINTS.conversations}/${id}/messages`, { method: 'POST', token, body })
   },
@@ -201,6 +214,34 @@ export const diraApi = {
   },
   createCv(token: string, body: { title?: string; targetJobId?: number; resume: Record<string, unknown> }) {
     return apiFetch<{ data: Record<string, unknown> }>(API_ENDPOINTS.cvs, { method: 'POST', token, body })
+  },
+  webSearch(token: string, body: { query: string; depth?: 'quick' | 'deep' }) {
+    return apiFetch<{
+      data: {
+        query: string
+        depth: string
+        source: string
+        results: Array<{ title: string; url: string; snippet: string; excerpt?: string }>
+      }
+    }>(API_ENDPOINTS.toolsWebSearch, { method: 'POST', token, body })
+  },
+  cvBuilder(
+    token: string,
+    body: { targetRole: string; title?: string; extraContext?: string }
+  ) {
+    return apiFetch<{
+      data: {
+        title: string
+        markdown: string
+        filename: string
+        artifactType: 'document'
+        artifact: boolean
+        targetRole: string
+        researchSources?: Array<{ title: string; url: string }>
+        resume?: Record<string, unknown>
+        saved?: Record<string, unknown>
+      }
+    }>(API_ENDPOINTS.toolsCvBuilder, { method: 'POST', token, body })
   },
   getCv(token: string, id: number) {
     return resourceClient(API_ENDPOINTS.cvs).get(token, id)

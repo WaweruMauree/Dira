@@ -1,5 +1,5 @@
 import { Globe } from 'lucide-react'
-import { searchExa } from '../providers/exa'
+import { diraApi } from '@/lib/api/dira'
 import type { ClientToolDefinition } from '@/lib/api/types'
 
 export const webSearchTool = {
@@ -12,23 +12,35 @@ export const webSearchTool = {
 
 export const webSearchDefinition: ClientToolDefinition = {
   name: 'webSearch',
-  description: 'Search the web for current career, job market, and education information using Exa.',
+  description:
+    'Search the web for current career, job market, and education information. Use depth "deep" before substantive factual answers.',
   parameters: {
     type: 'object',
     properties: {
       query: { type: 'string', description: 'Search query' },
+      depth: {
+        type: 'string',
+        enum: ['quick', 'deep'],
+        description: 'quick for light lookups; deep (default for research) for richer excerpts',
+      },
     },
     required: ['query'],
   },
 }
 
-export async function executeWebSearch(input: Record<string, unknown>) {
+export async function executeWebSearch(input: Record<string, unknown>, token: string | null) {
   const query = String(input.query ?? '')
   if (!query) return { error: 'query is required' }
+  if (!token) return { error: 'Not signed in' }
+
+  const depthRaw = input.depth != null ? String(input.depth) : 'quick'
+  const depth = depthRaw === 'deep' ? 'deep' : 'quick'
+
   try {
-    const results = await searchExa(query)
-    return { query, results }
+    const { data } = await diraApi.webSearch(token, { query, depth })
+    return data
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Exa search failed' }
+    const message = err instanceof Error ? err.message : 'Web search failed'
+    return { error: message, query, depth }
   }
 }

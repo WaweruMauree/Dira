@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageSquare, Compass, Briefcase, Plus, Bookmark } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -9,40 +8,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { AGENT_MODES, getChatPath } from '@/lib/agent/tools/registry'
+import { AGENT_MODES } from '@/lib/agent/tools/registry'
 import { useRecentChats } from '@/hooks/useRecentChats'
+import { useHomeChat } from '@/hooks/useHomeChat'
 import SavedJobsPanel from '@/components/jobs/SavedJobsPanel'
-
-function formatRelativeTime(iso) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
-}
-
-function ChatCard({ chat }) {
-  const config = AGENT_MODES[chat.mode]
-  const href = getChatPath(chat.mode, chat.id)
-
-  return (
-    <Link
-      to={href}
-      className="block bg-card-bg border border-hairline rounded-xl shadow-card p-5 hover:border-accent/50 transition-colors"
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <h3 className="font-medium text-ink text-sm truncate">{chat.title}</h3>
-        <Badge variant="outline" className="shrink-0 text-[10px]">{config.label}</Badge>
-      </div>
-      <p className="text-muted text-xs truncate mb-3">{chat.preview || 'No messages yet'}</p>
-      <p className="font-mono text-[10px] text-muted uppercase tracking-wider">
-        {formatRelativeTime(chat.updatedAt)}
-      </p>
-    </Link>
-  )
-}
+import HomeChatHero from '@/components/home/HomeChatHero'
+import HomeChatComposer from '@/components/home/HomeChatComposer'
+import RecentChatsDialog from '@/components/home/RecentChatsDialog'
+import ChatMessageList from '@/components/chat/ChatMessageList'
 
 function TabButton({ active, onClick, children, icon: Icon }) {
   return (
@@ -63,33 +36,59 @@ function TabButton({ active, onClick, children, icon: Icon }) {
 
 export default function HomePage() {
   const { chats } = useRecentChats()
-  const [tab, setTab] = useState('chats')
+  const [tab, setTab] = useState('home')
+  const [chatsOpen, setChatsOpen] = useState(false)
+  const [input, setInput] = useState('')
+  const {
+    messages,
+    sending,
+    sendMessage,
+    startNewChat,
+    loadConversation,
+    interests,
+    hasThread,
+    fullName,
+  } = useHomeChat()
+
+  const openChatsTab = () => {
+    setTab('home')
+    setChatsOpen(true)
+  }
+
+  if (tab === 'saved') {
+    return (
+      <div className="max-w-5xl mx-auto p-6 md:p-10">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <h1 className="font-heading text-2xl font-medium text-ink">Saved jobs</h1>
+          <TabButton active={false} onClick={() => setTab('home')} icon={MessageSquare}>
+            Back to chat
+          </TabButton>
+        </div>
+        <SavedJobsPanel />
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 md:p-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent font-bold mb-1">
-            Dashboard
-          </p>
-          <h1 className="font-heading text-3xl font-medium text-ink">
-            {tab === 'saved' ? 'Saved jobs' : 'Recent conversations'}
-          </h1>
+    <div className="flex flex-col min-h-[calc(100vh-4rem)] max-w-3xl mx-auto px-4 py-6 md:py-10">
+      <div className="flex items-center justify-between gap-3 mb-6 shrink-0">
+        <div className="flex gap-2">
+          <TabButton active={chatsOpen} onClick={openChatsTab} icon={MessageSquare}>
+            Chats
+          </TabButton>
+          <TabButton active={false} onClick={() => setTab('saved')} icon={Bookmark}>
+            Saved jobs
+          </TabButton>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="accent" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => startNewChat()}>
               <Plus className="h-4 w-4" />
-              New Chat
+              New chat
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem asChild>
-              <Link to="/chat/new" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                {AGENT_MODES.general.label}
-              </Link>
-            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => startNewChat()}>General chat</DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/skills-analysis" className="flex items-center gap-2">
                 <Compass className="h-4 w-4" />
@@ -106,37 +105,35 @@ export default function HomePage() {
         </DropdownMenu>
       </div>
 
-      <div className="flex gap-2 mb-8">
-        <TabButton active={tab === 'chats'} onClick={() => setTab('chats')} icon={MessageSquare}>
-          Recent conversations
-        </TabButton>
-        <TabButton active={tab === 'saved'} onClick={() => setTab('saved')} icon={Bookmark}>
-          Saved jobs
-        </TabButton>
+      <div className="flex-1 flex flex-col min-h-0">
+        {!hasThread && <HomeChatHero fullName={fullName} />}
+        {hasThread && (
+          <div className="flex-1 min-h-0 mb-4 -mx-2">
+            <HomeChatHero fullName={fullName} compact />
+            <div className="h-[min(50vh,420px)]">
+              <ChatMessageList messages={messages} sending={sending} />
+            </div>
+          </div>
+        )}
+        <div className="mt-auto pt-4 shrink-0">
+          <HomeChatComposer
+            value={input}
+            onChange={setInput}
+            onSend={sendMessage}
+            disabled={false}
+            sending={sending}
+            interests={interests}
+            showPills={!hasThread}
+          />
+        </div>
       </div>
 
-      {tab === 'saved' ? (
-        <SavedJobsPanel />
-      ) : chats.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-hairline bg-card-bg/50 p-12 text-center">
-          <MessageSquare className="h-10 w-10 text-muted mx-auto mb-4" />
-          <h2 className="font-heading text-xl font-medium text-ink mb-2">No conversations yet</h2>
-          <p className="text-muted text-sm mb-6 max-w-md mx-auto">
-            Start a chat to get career guidance, search for jobs, or ask general career questions.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button variant="outline" asChild><Link to="/chat/new">General Chat</Link></Button>
-            <Button variant="outline" asChild><Link to="/skills-analysis">Skills Analysis</Link></Button>
-            <Button variant="accent" asChild><Link to="/jobs">Job Search</Link></Button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {chats.map((chat) => (
-            <ChatCard key={chat.id} chat={chat} />
-          ))}
-        </div>
-      )}
+      <RecentChatsDialog
+        open={chatsOpen}
+        chats={chats}
+        onClose={() => setChatsOpen(false)}
+        onSelect={loadConversation}
+      />
     </div>
   )
 }

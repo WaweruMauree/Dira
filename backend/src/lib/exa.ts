@@ -4,13 +4,33 @@ export type ExaSearchResult = {
   title: string
   url: string
   snippet: string
+  excerpt: string
 }
 
 export function hasExaKey(): boolean {
   return env.EXA_API_KEY.length > 0
 }
 
-export async function searchExa(query: string): Promise<ExaSearchResult[]> {
+type ExaRawResult = {
+  title?: string
+  url?: string
+  highlights?: string[]
+  text?: string
+}
+
+function mapExaResult(item: ExaRawResult, excerptLen: number): ExaSearchResult {
+  const text = item.text ?? ''
+  const snippet = item.highlights?.[0] || text.slice(0, 280)
+  const excerpt = text.slice(0, excerptLen) || snippet
+  return {
+    title: item.title || item.url || 'Source',
+    url: item.url || '',
+    snippet,
+    excerpt,
+  }
+}
+
+async function exaSearch(query: string, numResults: number, excerptLen: number): Promise<ExaSearchResult[]> {
   if (!hasExaKey()) return []
 
   const res = await fetch('https://api.exa.ai/search', {
@@ -22,28 +42,33 @@ export async function searchExa(query: string): Promise<ExaSearchResult[]> {
     body: JSON.stringify({
       query,
       type: 'auto',
-      numResults: 6,
+      numResults,
       contents: {
         highlights: true,
-        text: { maxCharacters: 600 },
+        text: { maxCharacters: excerptLen },
       },
     }),
   })
 
   if (!res.ok) return []
 
-  const json = (await res.json()) as {
-    results?: Array<{
-      title?: string
-      url?: string
-      highlights?: string[]
-      text?: string
-    }>
-  }
+  const json = (await res.json()) as { results?: ExaRawResult[] }
+  return (json.results ?? []).map((item) => mapExaResult(item, excerptLen))
+}
 
-  return (json.results ?? []).map((item) => ({
-    title: item.title || item.url || 'Source',
-    url: item.url || '',
-    snippet: item.highlights?.[0] || (item.text ? item.text.slice(0, 400) : ''),
-  }))
+/** Quick search (6 results, shorter excerpts). */
+export async function searchExa(query: string): Promise<ExaSearchResult[]> {
+  return exaSearch(query, 6, 600)
+}
+
+/** Deep search for agent research (10 results, longer excerpts). */
+export async function searchExaDeep(query: string): Promise<ExaSearchResult[]> {
+  return exaSearch(query, 10, 1500)
+}
+
+export async function searchExaWithDepth(
+  query: string,
+  depth: 'quick' | 'deep' = 'quick'
+): Promise<ExaSearchResult[]> {
+  return depth === 'deep' ? searchExaDeep(query) : searchExa(query)
 }

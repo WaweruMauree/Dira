@@ -10,11 +10,22 @@ const toolResult = z.object({
   error: z.string().optional(),
 })
 
+const attachmentSchema = z.object({
+  name: z.string(),
+  mime: z.string(),
+  kind: z.enum(['image', 'document']),
+  text: z.string().optional(),
+  dataUrl: z.string().optional(),
+  path: z.string().optional(),
+  url: z.string().optional(),
+})
+
 const chatSchema = z.object({
   conversationId: z.string().uuid().optional(),
   chatId: z.string().uuid().optional(),
   mode: z.enum(['general', 'career_guidance', 'job_aggregation']).optional(),
   userMessage: z.string().optional(),
+  attachments: z.array(attachmentSchema).optional(),
   tools: z.array(z.unknown()).optional(),
   toolResults: z.array(toolResult).optional(),
   profileContext: z.record(z.unknown()).optional(),

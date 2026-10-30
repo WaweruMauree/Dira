@@ -7,6 +7,8 @@ export const API_ENDPOINTS = {
   onboardingProgrammeSuggestions: '/api/v1/onboarding/programme-suggestions',
   skillsProficiencyRubrics: '/api/v1/skills/proficiency-rubrics',
   agentChat: '/api/v1/agent/chat',
+  toolsWebSearch: '/api/v1/tools/web-search',
+  toolsCvBuilder: '/api/v1/tools/cv-builder',
   conversations: '/api/v1/conversations',
   userJobs: '/api/v1/user-jobs',
   cvs: '/api/v1/cvs',

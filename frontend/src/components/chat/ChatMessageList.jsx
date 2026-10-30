@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import ChatMessageBubble from './ChatMessageBubble'
-import ToolCallBlock from './ToolCallBlock'
+import AssistantTurnBlock from './AssistantTurnBlock'
 
-export default function ChatMessageList({ messages, welcomeMessage }) {
+export default function ChatMessageList({ messages, welcomeMessage, sending = false }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -20,10 +20,10 @@ export default function ChatMessageList({ messages, welcomeMessage }) {
         )}
         {messages.map((message) => (
           <div key={message.id} className="space-y-3">
-            <ChatMessageBubble message={message} />
-            {message.toolCalls?.map((toolCall, i) => (
-              <ToolCallBlock key={`${message.id}-tool-${i}`} toolCall={toolCall} />
-            ))}
+            {message.role === 'user' && <ChatMessageBubble message={message} />}
+            {message.role === 'assistant' && (
+              <AssistantTurnBlock message={message} sending={sending} />
+            )}
           </div>
         ))}
         <div ref={bottomRef} />

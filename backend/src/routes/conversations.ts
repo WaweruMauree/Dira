@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { Router } from 'express'
 import { z } from 'zod'
 import { asyncHandler, HttpError } from '../middleware/error.js'
@@ -110,6 +111,55 @@ conversationsRouter.get(
       .order('created_at', { ascending: true })
     throwIfError(error)
     res.json({ data: data ?? [] })
+  })
+)
+
+const attachmentUploadSchema = z.object({
+  name: z.string().min(1).max(255),
+  mime: z.string().min(1).max(128),
+  kind: z.enum(['image', 'document']),
+  dataBase64: z.string().min(1).max(1_400_000),
+})
+
+conversationsRouter.post(
+  '/:id/attachments',
+  asyncHandler(async (req, res) => {
+    const id = z.string().uuid().parse(req.params.id)
+    const body = attachmentUploadSchema.parse(req.body ?? {})
+
+    const { data: conv, error: convError } = await req.supabase
+      .from('conversations')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle()
+    throwIfError(convError)
+    if (!conv) throw new HttpError(404, 'Conversation not found')
+
+    const fileId = randomUUID()
+    const safeName = body.name.replace(/[^\w.-]+/g, '_').slice(0, 120)
+    const path = `${req.authUser.id}/${id}/${fileId}-${safeName}`
+    const buffer = Buffer.from(body.dataBase64, 'base64')
+
+    const { error: uploadError } = await req.supabase.storage
+      .from('chat-attachments')
+      .upload(path, buffer, { contentType: body.mime, upsert: false })
+    throwIfError(uploadError)
+
+    const { data: signed, error: signError } = await req.supabase.storage
+      .from('chat-attachments')
+      .createSignedUrl(path, 3600)
+    throwIfError(signError)
+
+    res.status(201).json({
+      data: {
+        id: fileId,
+        path,
+        mime: body.mime,
+        name: body.name,
+        kind: body.kind,
+        url: signed?.signedUrl ?? null,
+      },
+    })
   })
 )
 

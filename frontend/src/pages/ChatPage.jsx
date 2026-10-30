@@ -11,7 +11,7 @@ export default function ChatPage() {
       chatId={chatId}
       agentMode="general"
       tools={config.tools}
-      welcomeMessage="Ask general career questions. I can search the web for current trends and advice."
+      welcomeMessage="Ask career questions — I'll research the web when needed. For a CV, tell me your target role and I'll research examples, draft a Word-ready CV, and show a download card."
     />
   )
 }

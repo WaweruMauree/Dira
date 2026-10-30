@@ -6,20 +6,7 @@ import {
   getToolStatusLabel,
 } from '@/lib/agent/tools/formatToolOutput'
 import { cn } from '@/lib/utils'
-
-function StatusDot({ status }) {
-  return (
-    <span
-      className={cn(
-        'inline-block h-2 w-2 shrink-0 rounded-full',
-        status === 'complete' && 'bg-emerald-500',
-        status === 'error' && 'bg-red-500',
-        status === 'pending' && 'bg-gray-400 animate-pulse'
-      )}
-      aria-hidden
-    />
-  )
-}
+import { artifactFromToolOutput, isArtifactTool } from '@/lib/chat/artifactFromTool'
 
 function ToolDetailLines({ lines, className }) {
   if (!lines.length) return null
@@ -33,6 +20,10 @@ function ToolDetailLines({ lines, className }) {
 }
 
 export default function ToolCallBlock({ toolCall }) {
+  if (isArtifactTool(toolCall.name) && artifactFromToolOutput(toolCall.output)) {
+    return null
+  }
+
   const meta = getToolMetadata(toolCall.name)
   const Icon = meta.icon
   const isPending = toolCall.status === 'pending'
@@ -41,7 +32,7 @@ export default function ToolCallBlock({ toolCall }) {
   const outputLines = formatToolOutput(toolCall.name, toolCall.output, toolCall.input)
 
   return (
-    <div className="rounded-xl border border-hairline bg-card-bg/80 p-4 text-sm">
+    <div className="rounded-xl border border-hairline bg-card-bg/80 p-4 text-sm max-w-[75%]">
       <div className="flex items-center gap-2 mb-3">
         {Icon && <Icon className="h-4 w-4 text-muted shrink-0" />}
         <span className="font-medium text-ink">{meta.label}</span>
@@ -49,18 +40,8 @@ export default function ToolCallBlock({ toolCall }) {
           {isPending ? (
             <Loader2 className="h-3 w-3 animate-spin text-muted" />
           ) : (
-            <StatusDot status={toolCall.status} />
+            <span className="text-xs text-muted">{getToolStatusLabel(toolCall.status)}</span>
           )}
-          <span
-            className={cn(
-              'font-mono text-[10px] uppercase tracking-wider',
-              toolCall.status === 'complete' && 'text-emerald-600 dark:text-emerald-400',
-              toolCall.status === 'error' && 'text-red-600 dark:text-red-400',
-              isPending && 'text-muted'
-            )}
-          >
-            {getToolStatusLabel(toolCall.status)}
-          </span>
         </div>
       </div>
 

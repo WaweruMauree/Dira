@@ -24,6 +24,8 @@ const envSchema = z.object({
   ADZUNA_COUNTRY: trimStringDefault('gb'),
   OPENROUTER_API_KEY: trimStringDefault(''),
   OPENROUTER_MODEL: trimStringDefault('openai/gpt-4o-mini'),
+  OPENROUTER_VISION_MODEL: trimStringDefault('openai/gpt-4o-mini'),
+  OPENROUTER_MAX_TOKENS: z.coerce.number().int().positive().max(16384).default(2048),
   OPENROUTER_RUBRIC_MODEL: trimStringDefault(''),
   OPENROUTER_SITE_URL: trimStringDefault('http://localhost:5173'),
   EXA_API_KEY: trimStringDefault(''),

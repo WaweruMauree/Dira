@@ -4,6 +4,12 @@ import { diraApi } from '@/lib/api/dira'
 import { definitionsFor } from '@/lib/agent/tools/index'
 import { executeClientTool } from '@/lib/agent/tools/execute'
 import { useAuth } from '@/context/AuthProvider'
+import { AgentApiError } from '@/lib/api/client'
+import { normalizeTurns } from '@/lib/chat/normalizeTurns'
+import { rehydrateMessages, rehydrateAssistantMessage } from '@/lib/chat/rehydrateToolCalls'
+import { cacheArtifactOutput } from '@/lib/chat/artifactCache'
+import { isArtifactTool } from '@/lib/chat/artifactFromTool'
+import { extractMarkdownArtifact } from '@/lib/chat/parseArtifact'
 
 function makeId() {
   return crypto.randomUUID()
@@ -15,8 +21,77 @@ function mapDbMessage(row) {
     role: row.role || 'assistant',
     content: String(row.content ?? ''),
     toolCalls: row.tool_calls ?? undefined,
+    attachments: row.attachments ?? undefined,
     createdAt: String(row.created_at ?? new Date().toISOString()),
   }
+}
+
+function stripAttachmentsForApi(attachments) {
+  if (!Array.isArray(attachments) || attachments.length === 0) return undefined
+  return attachments.map((a) => {
+    const base = {
+      name: a.name,
+      mime: a.mime,
+      kind: a.kind,
+      text: a.text,
+      path: a.path,
+      url: a.url,
+    }
+    if (a.kind === 'image' && a.url) return base
+    if (a.kind === 'image' && a.dataUrl) return { ...base, dataUrl: a.dataUrl }
+    return base
+  })
+}
+
+function finalizeToolCalls(toolCalls, content, conversationId) {
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) return toolCalls
+  const fallback = extractMarkdownArtifact(content ?? '')
+  return toolCalls.map((tc) => {
+    if (!isArtifactTool(tc.name)) return tc
+    if (tc.status === 'complete' && tc.output) return tc
+    if (tc.output?.artifact) {
+      return { ...tc, status: 'complete' }
+    }
+    const fromExtract = fallback
+      ? {
+          title: fallback.title,
+          markdown: fallback.markdown,
+          filename: fallback.filename,
+          artifactType: fallback.artifactType,
+          artifact: true,
+        }
+      : null
+    if (fromExtract) {
+      return { ...tc, status: 'complete', output: fromExtract }
+    }
+    return tc
+  })
+}
+
+function mergeFinalAssistant(prev, responseMessage, responseDurationMs, conversationId) {
+  const next = [...prev]
+  const last = next[next.length - 1]
+  const mergedContent = responseMessage.content ?? last?.content ?? ''
+
+  if (last?.role === 'assistant' && last.toolCalls?.length) {
+    const toolCalls = finalizeToolCalls(last.toolCalls, mergedContent, conversationId)
+    const updated = {
+      ...last,
+      id: responseMessage.id ?? last.id,
+      content: mergedContent,
+      toolCalls,
+      responseDurationMs,
+      createdAt: responseMessage.createdAt ?? last.createdAt,
+    }
+    next[next.length - 1] = rehydrateAssistantMessage(updated, conversationId)
+    return next
+  }
+
+  next.push({
+    ...responseMessage,
+    responseDurationMs,
+  })
+  return next
 }
 
 export function useChat({ chatId, agentMode, tools, onToolComplete }) {
@@ -27,13 +102,19 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
 
   useEffect(() => {
     let cancelled = false
+    if (!chatId) {
+      setMessages([])
+      return undefined
+    }
     ;(async () => {
       const token = await getAccessToken()
       if (!token || cancelled) return
       try {
         const { data } = await diraApi.listMessages(token, chatId)
         if (!cancelled) {
-          setMessages(data.filter((row) => row.role !== 'tool').map(mapDbMessage))
+          const mapped = data.filter((row) => row.role !== 'tool').map(mapDbMessage)
+          const normalized = normalizeTurns(mapped)
+          setMessages(rehydrateMessages(normalized, chatId))
         }
       } catch {
         if (!cancelled) setMessages([])
@@ -48,13 +129,19 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
     async (userMessage, extras = {}) => {
       if (!userMessage.trim() || sending) return
 
+      const activeChatId = extras.conversationId || chatId
+      if (!activeChatId) return
+
+      const turnStartedAt = performance.now()
       setSending(true)
       setError(null)
 
+      const attachments = extras.attachments ?? []
       const userMsg = {
         id: makeId(),
         role: 'user',
         content: userMessage.trim(),
+        attachments: attachments.length ? attachments : undefined,
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, userMsg])
@@ -62,8 +149,16 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
       try {
         const token = await getAccessToken()
         const definitions = definitionsFor(tools)
+        const uploadedFiles = (attachments ?? [])
+          .filter((a) => a.text || a.kind === 'document')
+          .map((a) => ({
+            name: a.name,
+            kind: a.kind,
+            text: a.text?.slice(0, 8000),
+          }))
         const profileContext = {
           ...(extras.profileContext ?? {}),
+          ...(uploadedFiles.length ? { uploadedFiles } : {}),
           ...(extras.cvExcerpt && extras.cvExcerpt.trim()
             ? {
                 cvExcerpt: extras.cvExcerpt.trim(),
@@ -72,14 +167,16 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
             : {}),
         }
         const hasProfileContext = Object.keys(profileContext).length > 0
+        const attachmentPayload = stripAttachmentsForApi(attachments)
 
         let response = await sendAgentMessage(
           {
-            conversationId: chatId,
-            chatId,
+            conversationId: activeChatId,
+            chatId: activeChatId,
             mode: agentMode,
             tools: definitions,
             userMessage: userMessage.trim(),
+            ...(attachmentPayload?.length ? { attachments: attachmentPayload } : {}),
             ...(hasProfileContext ? { profileContext } : {}),
           },
           token
@@ -104,13 +201,20 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
           const completed = []
           for (const call of pending) {
             try {
-              const output = await executeClientTool(String(call.name), call.input ?? {}, token)
+              const output = await executeClientTool(String(call.name), call.input ?? {}, token, {
+                profileContext,
+                attachments: attachmentPayload,
+              })
+              const toolCallId = call.id || makeId()
+              if (isArtifactTool(String(call.name)) && output && typeof output === 'object') {
+                cacheArtifactOutput(activeChatId, toolCallId, output)
+              }
               toolResults.push({
-                toolCallId: call.id || makeId(),
+                toolCallId,
                 name: String(call.name),
                 output,
               })
-              completed.push({ ...call, status: 'complete', output })
+              completed.push({ ...call, id: toolCallId, status: 'complete', output })
               onToolComplete?.(String(call.name), call.input, output)
             } catch (err) {
               const message = err instanceof Error ? err.message : 'Tool failed'
@@ -134,11 +238,12 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
 
           response = await sendAgentMessage(
             {
-              conversationId: response.conversationId || chatId,
-              chatId,
+              conversationId: response.conversationId || activeChatId,
+              chatId: activeChatId,
               mode: agentMode,
               tools: definitions,
               toolResults,
+              ...(hasProfileContext ? { profileContext } : {}),
             },
             token
           )
@@ -148,15 +253,30 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
           throw new Error(response.error || 'Agent request failed')
         }
 
+        const responseDurationMs = Math.round(performance.now() - turnStartedAt)
+
         if (response.message) {
-          setMessages((prev) => [...prev, response.message])
+          setMessages((prev) =>
+            mergeFinalAssistant(prev, response.message, responseDurationMs, activeChatId)
+          )
         }
       } catch (err) {
-        setError(err.message || 'Failed to send message')
+        const responseDurationMs = Math.round(performance.now() - turnStartedAt)
+        const detail =
+          err instanceof AgentApiError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : 'Failed to send message'
+        setError(detail)
+        const isProvider =
+          err instanceof AgentApiError ||
+          /openrouter|credits|max_tokens|Cannot reach/i.test(detail)
         const errorMsg = {
           id: makeId(),
           role: 'assistant',
-          content: 'Sorry, something went wrong. Please try again.',
+          content: isProvider ? detail : `Sorry, something went wrong. ${detail}`,
+          responseDurationMs,
           createdAt: new Date().toISOString(),
         }
         setMessages((prev) => [...prev, errorMsg])

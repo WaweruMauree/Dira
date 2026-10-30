@@ -16,6 +16,7 @@ import { skillsGapRouter } from './routes/skillsGap.js'
 import { careerPathwaysRouter } from './routes/careerPathways.js'
 import { skillsRubricsRouter } from './routes/skillsRubrics.js'
 import { agentRouter } from './routes/agent.js'
+import { toolsRouter } from './routes/tools.js'
 import { mountResourceRoutes } from './routes/resources.js'
 import { adminRouter } from './routes/admin.js'
 import { authPublicRouter } from './routes/authPublic.js'
@@ -33,7 +34,7 @@ export function createApp() {
       credentials: true,
     })
   )
-  app.use(express.json({ limit: '1mb' }))
+  app.use(express.json({ limit: '4mb' }))
   app.use(
     rateLimit({
       windowMs: 60_000,
@@ -70,6 +71,7 @@ export function createApp() {
   api.use('/career-pathways', careerPathwaysRouter)
   api.use('/skills', skillsRubricsRouter)
   api.use('/agent', agentRouter)
+  api.use('/tools', toolsRouter)
   api.use('/admin', adminRouter)
   mountResourceRoutes(api)
   api.use((req, res) => {

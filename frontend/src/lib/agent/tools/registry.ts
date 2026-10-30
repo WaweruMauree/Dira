@@ -4,7 +4,7 @@ export const AGENT_MODES: Record<AgentMode, AgentModeConfig> = {
   general: {
     label: 'Career Assistant',
     route: '/chat',
-    tools: ['webSearch', 'buildCv', 'salaryEstimator'],
+    tools: ['webSearch', 'cvBuilder', 'salaryEstimator', 'analyzeUploadedFile', 'exportMarkdownDocument'],
     description: 'General career questions, CVs, and salary research.',
   },
   career_guidance: {

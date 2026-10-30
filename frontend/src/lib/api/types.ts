@@ -9,7 +9,10 @@ export type ToolName =
   | 'analyzeSkillsGap'
   | 'profileLookup'
   | 'buildCv'
+  | 'cvBuilder'
   | 'salaryEstimator'
+  | 'analyzeUploadedFile'
+  | 'exportMarkdownDocument'
 
 export interface ChatMessage {
   id: string
@@ -47,6 +50,15 @@ export interface AgentChatRequest {
     error?: string
   }>
   profileContext?: Record<string, unknown>
+  attachments?: Array<{
+    name: string
+    mime: string
+    kind: 'image' | 'document'
+    text?: string
+    dataUrl?: string
+    path?: string
+    url?: string
+  }>
 }
 
 export interface AgentChatResponse {

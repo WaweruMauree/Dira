@@ -10,10 +10,14 @@ export type ClientToolDefinition = {
 const BUILTIN: Record<string, ClientToolDefinition> = {
   webSearch: {
     name: 'webSearch',
-    description: 'Search the web for current career, job market, and education information.',
+    description:
+      'Search the web for current career, job market, and education information. Use depth deep before substantive factual answers (max 2 deep + 1 quick search per turn).',
     parameters: {
       type: 'object',
-      properties: { query: { type: 'string', description: 'Search query' } },
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        depth: { type: 'string', enum: ['quick', 'deep'], description: 'deep for research; quick for light lookups' },
+      },
       required: ['query'],
     },
   },
@@ -69,13 +73,28 @@ const BUILTIN: Record<string, ClientToolDefinition> = {
   },
   buildCv: {
     name: 'buildCv',
-    description: 'Build a JSON Resume draft from the student profile, optionally tailored to a fetched job.',
+    description: 'Deprecated: use cvBuilder instead.',
     parameters: {
       type: 'object',
       properties: {
         targetJobId: { type: 'number' },
         title: { type: 'string' },
+        targetRole: { type: 'string' },
       },
+    },
+  },
+  cvBuilder: {
+    name: 'cvBuilder',
+    description:
+      'Research role-specific CV examples on the web, then draft a complete ATS-friendly CV in markdown from the student profile only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        targetRole: { type: 'string', description: 'Job or career target' },
+        title: { type: 'string' },
+        extraContext: { type: 'string', description: 'Optional conversation context' },
+      },
+      required: ['targetRole'],
     },
   },
   salaryEstimator: {
@@ -88,6 +107,31 @@ const BUILTIN: Record<string, ClientToolDefinition> = {
         location: { type: 'string' },
       },
       required: ['query'],
+    },
+  },
+  analyzeUploadedFile: {
+    name: 'analyzeUploadedFile',
+    description:
+      'Summarize uploaded document text from profileContext.uploadedFiles or ask the student to attach a file.',
+    parameters: {
+      type: 'object',
+      properties: {
+        fileName: { type: 'string' },
+        focus: { type: 'string' },
+      },
+    },
+  },
+  exportMarkdownDocument: {
+    name: 'exportMarkdownDocument',
+    description: 'Return a downloadable Markdown CV, cover letter, or study plan for the student.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        markdown: { type: 'string' },
+        filename: { type: 'string' },
+      },
+      required: ['title', 'markdown'],
     },
   },
   linkedinJobSearch: {
@@ -142,7 +186,7 @@ const STYLE_SUFFIX = ` ${PUNCTUATION_STYLE_RULE}`
 
 export const MODE_SYSTEM: Record<string, string> = {
   general:
-    `You are Dira, a career assistant for university students. Use tools when they help. Be concise and practical. When you need live web facts, call webSearch. When asked for a CV, call buildCv. For pay ranges, call salaryEstimator.${STYLE_SUFFIX}`,
+    `You are Dira, a career assistant for university students. Use tools when they help. Be concise and practical. Before factual career, market, or education claims, call webSearch with depth deep (one or two queries; max 2 deep and 1 quick search per turn). Cite source titles or URLs briefly in prose; never invent URLs. When asked for a CV: (1) webSearch deep for role-specific CV examples and structure, (2) call cvBuilder with targetRole, (3) reply with a short summary only — do not paste the full CV (the download card handles the file). If web search is unavailable, say so and still run cvBuilder. For pay ranges, call salaryEstimator. When the student attaches files, call analyzeUploadedFile for document text; use image content in the user message for photos. For other long deliverables (cover letter, study plan), call exportMarkdownDocument with full markdown. Do not include sandbox links, fake download URLs, or markdown file links in your reply; the app shows a download card after cvBuilder or exportMarkdownDocument. You may append a fenced block \`\`\`artifact\\n{"type":"markdown","title":"...","markdown":"...","filename":"..."}\\n\`\`\` when exportMarkdownDocument is not used.${STYLE_SUFFIX}`,
   career_guidance:
     `You are Dira Skills Analysis. Ground every answer in analyzeSkillsGap results and profileContext.skillsAnalysisSummary when present. Explain gaps and upskills with required proficiency levels. For course or YouTube recommendations, call webSearch only; never invent URLs. Prefer reputable free courses and official YouTube tutorials. One webSearch per skill, max five per turn. Use profileLookup or mapPathway when role context is unclear.${STYLE_SUFFIX}`,
   job_aggregation:

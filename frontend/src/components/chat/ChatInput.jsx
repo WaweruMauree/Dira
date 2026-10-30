@@ -2,25 +2,7 @@ import { useState, useRef } from 'react'
 import { Send, Loader2, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-
-const MAX_ATTACHMENT_CHARS = 12_000
-
-async function readCvFile(file) {
-  if (file.size > 512_000) {
-    throw new Error('File must be under 512KB.')
-  }
-  const name = file.name.toLowerCase()
-  const ok =
-    file.type.startsWith('text/') ||
-    name.endsWith('.txt') ||
-    name.endsWith('.md') ||
-    name.endsWith('.csv')
-  if (!ok) {
-    throw new Error('Upload a .txt or .md CV (PDF support coming soon).')
-  }
-  const text = await file.text()
-  return text.slice(0, MAX_ATTACHMENT_CHARS)
-}
+import { ATTACHMENT_ACCEPT, readAttachmentFile } from '@/lib/chat/readAttachmentFile'
 
 export default function ChatInput({
   onSend,
@@ -30,19 +12,21 @@ export default function ChatInput({
   placeholder = 'Ask anything about your career...',
 }) {
   const [value, setValue] = useState('')
-  const [attachment, setAttachment] = useState(null)
+  const [pending, setPending] = useState([])
   const [attachError, setAttachError] = useState(null)
   const fileRef = useRef(null)
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!value.trim() || disabled || sending) return
+    const legacyCv = pending.find((a) => a.kind === 'document' && a.text)
     onSend(value, {
-      cvExcerpt: attachment?.text,
-      cvFileName: attachment?.name,
+      attachments: pending,
+      cvExcerpt: legacyCv?.text,
+      cvFileName: legacyCv?.name,
     })
     setValue('')
-    setAttachment(null)
+    setPending([])
     setAttachError(null)
   }
 
@@ -58,11 +42,10 @@ export default function ChatInput({
     if (!file) return
     setAttachError(null)
     try {
-      const text = await readCvFile(file)
-      setAttachment({ name: file.name, text })
+      const item = await readAttachmentFile(file)
+      setPending((prev) => [...prev, item])
     } catch (err) {
       setAttachError(err instanceof Error ? err.message : 'Could not read file')
-      setAttachment(null)
     }
     e.target.value = ''
   }
@@ -70,13 +53,24 @@ export default function ChatInput({
   return (
     <form onSubmit={handleSubmit} className="border-t border-hairline bg-card-bg p-3 md:p-4">
       {attachError && <p className="text-xs text-destructive mb-2 px-1">{attachError}</p>}
-      {attachment && (
-        <div className="flex items-center gap-2 mb-2 px-1 text-xs text-muted bg-secondary/40 rounded-md py-1.5 px-2">
-          <Paperclip className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate flex-1">{attachment.name}</span>
-          <button type="button" onClick={() => setAttachment(null)} aria-label="Remove attachment">
-            <X className="h-3.5 w-3.5" />
-          </button>
+      {pending.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2 px-1">
+          {pending.map((a, i) => (
+            <div
+              key={`${a.name}-${i}`}
+              className="flex items-center gap-2 text-xs text-muted bg-secondary/40 rounded-md py-1.5 px-2"
+            >
+              <Paperclip className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate max-w-[200px]">{a.name}</span>
+              <button
+                type="button"
+                onClick={() => setPending((prev) => prev.filter((_, j) => j !== i))}
+                aria-label="Remove attachment"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
       <div className="max-w-3xl mx-auto flex gap-2 items-end">
@@ -85,7 +79,7 @@ export default function ChatInput({
             <input
               ref={fileRef}
               type="file"
-              accept=".txt,.md,.csv,text/plain,text/markdown"
+              accept={ATTACHMENT_ACCEPT}
               className="hidden"
               onChange={onFileChange}
             />
@@ -95,7 +89,7 @@ export default function ChatInput({
               size="icon"
               className="shrink-0"
               disabled={disabled || sending}
-              aria-label="Attach CV"
+              aria-label="Attach file"
               onClick={() => fileRef.current?.click()}
             >
               <Paperclip className="h-4 w-4" />
@@ -107,16 +101,11 @@ export default function ChatInput({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="min-h-[48px] max-h-28 resize-none flex-1"
           disabled={disabled || sending}
+          rows={1}
+          className="min-h-[44px] max-h-32 resize-none"
         />
-        <Button
-          type="submit"
-          variant="accent"
-          size="icon"
-          className="shrink-0"
-          disabled={!value.trim() || disabled || sending}
-        >
+        <Button type="submit" size="icon" variant="accent" className="shrink-0" disabled={!value.trim() || disabled || sending}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
