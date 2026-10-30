@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type ProfileRow = {
   id: string
+  email: string | null
   phone_number: string | null
   username: string | null
   full_name: string | null

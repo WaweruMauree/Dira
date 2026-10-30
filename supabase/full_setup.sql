@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS public.opportunity_sources (
 -- profiles maps ER Users (minus email/password_hash → Supabase Auth)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id               UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email            TEXT,
   phone_number     VARCHAR(20),
   username         VARCHAR(255),
   full_name        VARCHAR(255),
@@ -418,6 +419,7 @@ BEGIN
 
   INSERT INTO public.profiles (
     id,
+    email,
     phone_number,
     username,
     full_name,
@@ -426,6 +428,7 @@ BEGIN
     status
   ) VALUES (
     NEW.id,
+    CASE WHEN NEW.email IS NOT NULL AND trim(NEW.email) <> '' THEN lower(trim(NEW.email)) ELSE NULL END,
     NEW.raw_user_meta_data->>'phone_number',
     COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'full_name',

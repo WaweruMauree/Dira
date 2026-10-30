@@ -55,7 +55,7 @@ The ER `Users` table is **not** duplicated. Supabase Auth owns credentials.
 | ER `Users` column | Location |
 |---|---|
 | `user_id` (PK) | `auth.users.id` (UUID) |
-| `email` | `auth.users.email` |
+| `email` | `auth.users.email` (canonical); mirrored on `profiles.email` for queries |
 | `password_hash` | Supabase Auth (omitted from public schema) |
 | `phone_number` | `profiles.phone_number` |
 | `username` | `profiles.username` |
@@ -150,3 +150,6 @@ Pass metadata at signup (via Supabase Auth):
 - RLS is enabled on all public tables. The TypeScript backend should use the **service role** key for server-side writes.
 - `student_skills.proficiency_type` maps ER `proficiency ENUM('SELF_ASSESSED')`; level stored separately as `proficiency_level` (1–5) for onboarding.
 - **Skills Analysis (migration 007):** Run [`migrations/007_skills_gap_role_report.sql`](migrations/007_skills_gap_role_report.sql) so analyses persist and `GET /skills-gap/analyses` / `latest` work. Without 007, the API still returns a fresh report from `POST /skills-gap/analyze`, but rows are not stored.
+
+
+Run **011_profiles_email.sql** to sync emails from `auth.users` into `profiles.email`.

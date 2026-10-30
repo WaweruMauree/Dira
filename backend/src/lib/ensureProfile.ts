@@ -29,8 +29,12 @@ export async function ensureProfileForAuthUser(authUser: User): Promise<void> {
   const assignedRole = roleRaw === 'ADMIN' ? 'ADMIN' : 'STUDENT'
   const email = authUser.email ?? undefined
 
+  const normalizedEmail =
+    email && email.trim() ? email.trim().toLowerCase() : null
+
   const { error: profileErr } = await service.from('profiles').insert({
     id: userId,
+    email: normalizedEmail,
     phone_number: typeof meta.phone_number === 'string' ? meta.phone_number : null,
     username:
       typeof meta.username === 'string'
