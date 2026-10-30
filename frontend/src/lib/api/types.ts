@@ -201,6 +201,15 @@ export interface SkillsAnalysisReport {
     skillId: number | null
     skillName: string | null
   }>
+  agentSourcedResources?: Array<{
+    skill: string
+    query: string
+    items: Array<{ title: string; url: string; snippet?: string | null }>
+  }>
+  agentSourcedResourcesMeta?: {
+    unavailable?: boolean
+    reason?: string
+  }
   prioritisedPlan: Array<{
     order: number
     skill: string

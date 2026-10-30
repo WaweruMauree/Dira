@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
   skillsGapAnalyze: '/api/v1/skills-gap/analyze',
   skillsGapAnalysesList: '/api/v1/skills-gap/analyses',
   skillsGapLatest: '/api/v1/skills-gap/latest',
+  skillsGapAgentResources: '/api/v1/skills-gap/agent-resources',
   adminDashboardSummary: '/api/v1/admin/dashboard/summary',
   adminPendingReviews: '/api/v1/admin/dashboard/pending-reviews',
   adminStudents: '/api/v1/admin/students',

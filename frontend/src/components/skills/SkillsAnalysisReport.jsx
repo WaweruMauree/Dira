@@ -2,6 +2,23 @@ import SkillsAnalysisInterestPanel from '@/components/skills/SkillsAnalysisInter
 import SkillsAgentRecommendations from '@/components/skills/SkillsAgentRecommendations'
 import CareerInterestTabs from '@/components/career/CareerInterestTabs'
 import { SKILLS_ANALYSIS_LOADING_MESSAGE } from '@/constants/skillsAnalysis'
+import { useAgentSourcedResources } from '@/hooks/useAgentSourcedResources'
+
+function AgentSourcedSection({ report, targetRole }) {
+  const { groups, meta, loading, error } = useAgentSourcedResources(report, targetRole)
+  const hasDevelopmentSkills =
+    (report?.gaps?.length ?? 0) + (report?.upskills?.length ?? 0) > 0
+
+  return (
+    <SkillsAgentRecommendations
+      groups={groups}
+      meta={meta ?? report?.agentSourcedResourcesMeta}
+      loading={loading}
+      error={error}
+      hasDevelopmentSkills={hasDevelopmentSkills}
+    />
+  )
+}
 
 export default function SkillsAnalysisReport({
   interests,
@@ -10,7 +27,6 @@ export default function SkillsAnalysisReport({
   reportsByInterest,
   interestErrors = {},
   loadingByInterest = {},
-  agentRecs,
 }) {
   if (!interests.length) {
     return (
@@ -37,7 +53,7 @@ export default function SkillsAnalysisReport({
           <SkillsAnalysisInterestPanel report={report} />
           <div className="pt-4 border-t border-hairline">
             <p className="font-medium text-sm text-ink mb-2">Agent-sourced courses & videos</p>
-            <SkillsAgentRecommendations groups={agentRecs} />
+            <AgentSourcedSection report={report} targetRole={current} />
           </div>
         </div>
       ) : interestErrors?.[current] ? (

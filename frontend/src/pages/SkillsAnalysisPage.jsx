@@ -1,13 +1,10 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import SkillsAnalysisReport from '@/components/skills/SkillsAnalysisReport'
-import SkillsAnalysisChatPopup from '@/components/skills/SkillsAnalysisChatPopup'
 import { SKILLS_ANALYSIS_LOADING_MESSAGE } from '@/constants/skillsAnalysis'
 import { useSkillsAnalysis, OPENROUTER_SETUP_HINT } from '@/hooks/useSkillsAnalysis'
-import { mergeWebSearchRecs } from '@/lib/skills/webSearchRecs'
 
 export default function SkillsAnalysisPage() {
   const {
@@ -22,14 +19,6 @@ export default function SkillsAnalysisPage() {
     openRouterReady,
     refresh,
   } = useSkillsAnalysis()
-  const [agentRecs, setAgentRecs] = useState([])
-  const reportsReady = !loading && interests.length > 0 && Object.keys(reportsByInterest).length > 0
-
-  const handleToolComplete = (name, input, output) => {
-    if (name === 'webSearch') {
-      setAgentRecs((prev) => mergeWebSearchRecs(prev, input?.query, output))
-    }
-  }
 
   return (
     <div className="h-[calc(100vh-0px)] md:h-screen min-h-0 p-4 md:p-6 overflow-hidden flex flex-col">
@@ -74,7 +63,6 @@ export default function SkillsAnalysisPage() {
               reportsByInterest={reportsByInterest}
               interestErrors={interestErrors}
               loadingByInterest={loadingByInterest}
-              agentRecs={agentRecs}
             />
           </ErrorBoundary>
         )}
@@ -88,12 +76,6 @@ export default function SkillsAnalysisPage() {
           to add career interests.
         </p>
       )}
-
-      <SkillsAnalysisChatPopup
-        reportsByInterest={reportsByInterest}
-        onToolComplete={handleToolComplete}
-        autoPromptReady={reportsReady}
-      />
     </div>
   )
 }

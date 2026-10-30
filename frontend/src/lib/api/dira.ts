@@ -280,6 +280,17 @@ export const diraApi = {
     const qs = targetRole ? `?targetRole=${encodeURIComponent(targetRole)}` : ''
     return apiFetch<{ data: SkillsAnalysisReport | null }>(`${API_ENDPOINTS.skillsGapLatest}${qs}`, { token })
   },
+  fetchSkillsGapAgentResources(
+    token: string,
+    body: { targetRole: string; skills?: string[] }
+  ) {
+    return apiFetch<{
+      data: {
+        agentSourcedResources: SkillsAnalysisReport['agentSourcedResources']
+        agentSourcedResourcesMeta?: SkillsAnalysisReport['agentSourcedResourcesMeta']
+      }
+    }>(API_ENDPOINTS.skillsGapAgentResources, { method: 'POST', token, body })
+  },
   getCurrentCareerPathway(token: string, targetRole?: string) {
     const qs = targetRole ? `?targetRole=${encodeURIComponent(targetRole)}` : ''
     return apiFetch<{ data: CareerPathwayRecord | null }>(

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { MISSING_LEVEL_LABEL } from '../lib/copyStyle.js'
 import { throwIfError } from '../lib/helpers.js'
 import { fetchRequiredSkillsForRoleFromWeb } from './roleSkillsFromAgent.js'
+import { fetchAgentSourcedLearningLinks } from './skillLearningLinks.js'
 
 export type SkillRowStatus = 'met' | 'upskill' | 'gap'
 
@@ -354,6 +355,7 @@ async function buildWebSourcedSkillsReport(
 
   const roleTitle = web.roleTitle
   const prioritisedPlan = buildPrioritisedPlanFromSkills(skills)
+  const agentLinks = await fetchAgentSourcedLearningLinks({ prioritisedPlan, gaps, upskills })
 
   const methodology = buildMethodology({
     targetRole,
@@ -383,6 +385,10 @@ async function buildWebSourcedSkillsReport(
     requiredLevel,
     requiredLevelLabel: 'Varies by skill',
     webSources: web.sources,
+    agentSourcedResources: agentLinks.agentSourcedResources,
+    ...(agentLinks.agentSourcedResourcesMeta
+      ? { agentSourcedResourcesMeta: agentLinks.agentSourcedResourcesMeta }
+      : {}),
   }
 
   return { report, methodology }
@@ -502,6 +508,7 @@ async function buildCatalogSkillsReport(
   }
 
   const prioritisedPlan = buildPrioritisedPlanFromSkills(skills)
+  const agentLinks = await fetchAgentSourcedLearningLinks({ prioritisedPlan, gaps, upskills })
 
   const methodology = buildMethodology({
     targetRole,
@@ -531,6 +538,10 @@ async function buildCatalogSkillsReport(
     prioritisedPlan,
     requiredLevel,
     requiredLevelLabel: levelLabel(requiredLevel),
+    agentSourcedResources: agentLinks.agentSourcedResources,
+    ...(agentLinks.agentSourcedResourcesMeta
+      ? { agentSourcedResourcesMeta: agentLinks.agentSourcedResourcesMeta }
+      : {}),
   }
 
   return { report, methodology }
@@ -576,6 +587,8 @@ export async function buildOpportunitySkillsReport(
   const gaps = skills.filter((s) => s.status === 'gap').map((s) => s.name)
   const upskills = skills.filter((s) => s.status === 'upskill').map((s) => s.name)
   const strengths = skills.filter((s) => s.status === 'met').map((s) => s.name)
+  const prioritisedPlan = buildPrioritisedPlanFromSkills(skills)
+  const agentLinks = await fetchAgentSourcedLearningLinks({ prioritisedPlan, gaps, upskills })
 
   return {
     report: {
@@ -586,9 +599,13 @@ export async function buildOpportunitySkillsReport(
       upskills,
       strengths,
       curatedResources: [],
-      prioritisedPlan: buildPrioritisedPlanFromSkills(skills),
+      prioritisedPlan,
       requiredLevel,
       requiredLevelLabel: levelLabel(requiredLevel),
+      agentSourcedResources: agentLinks.agentSourcedResources,
+      ...(agentLinks.agentSourcedResourcesMeta
+        ? { agentSourcedResourcesMeta: agentLinks.agentSourcedResourcesMeta }
+        : {}),
     },
     methodology: buildMethodology({
       targetRole: `Opportunity #${opportunityId}`,

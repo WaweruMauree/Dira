@@ -6,6 +6,7 @@ import {
   buildOpportunitySkillsReport,
   buildSkillsAnalysisReport,
 } from '../services/skillsAnalysisReport.js'
+import { fetchAgentSourcedLearningLinks } from '../services/skillLearningLinks.js'
 
 const analyzeSchema = z
   .object({
@@ -67,6 +68,65 @@ skillsGapRouter.get(
         ...(typeof data.report === 'object' && data.report ? data.report : {}),
         saved: data,
         methodology: data.methodology,
+      },
+    })
+  })
+)
+
+skillsGapRouter.post(
+  '/agent-resources',
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        targetRole: z.string().min(1).max(200),
+        skills: z.array(z.string().min(1).max(120)).max(12).optional(),
+      })
+      .parse(req.body ?? {})
+
+    const { studentProfile } = await getStudentContext(req)
+    if (!studentProfile) throw new HttpError(400, 'Complete onboarding first')
+    const profileId = (studentProfile as { profile_id: number }).profile_id
+
+    let skillNames = body.skills?.map((s) => s.trim()).filter(Boolean)
+    let prioritisedPlan: Array<{ skill?: string }> | undefined
+    let gaps: string[] = []
+    let upskills: string[] = []
+
+    if (!skillNames?.length) {
+      const { data: latest } = await req.supabase
+        .from('skills_gap_analyses')
+        .select('report')
+        .eq('profile_id', profileId)
+        .eq('target_role', body.targetRole.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const report =
+        latest?.report && typeof latest.report === 'object'
+          ? (latest.report as Record<string, unknown>)
+          : null
+
+      if (report) {
+        prioritisedPlan = (report.prioritisedPlan as Array<{ skill?: string }>) ?? undefined
+        gaps = (report.gaps as string[]) ?? []
+        upskills = (report.upskills as string[]) ?? []
+      }
+    }
+
+    const links = await fetchAgentSourcedLearningLinks({
+      skills: skillNames?.length ? skillNames : undefined,
+      prioritisedPlan,
+      gaps,
+      upskills,
+    })
+
+    res.json({
+      data: {
+        agentSourcedResources: links.agentSourcedResources,
+        ...(links.agentSourcedResourcesMeta
+          ? { agentSourcedResourcesMeta: links.agentSourcedResourcesMeta }
+          : {}),
       },
     })
   })
