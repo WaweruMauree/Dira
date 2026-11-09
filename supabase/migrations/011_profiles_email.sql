@@ -58,7 +58,6 @@ BEGIN
     phone_number,
     username,
     full_name,
-    admission_number,
     role,
     status
   ) VALUES (
@@ -67,7 +66,6 @@ BEGIN
     NEW.raw_user_meta_data->>'phone_number',
     COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'full_name',
-    NEW.raw_user_meta_data->>'admission_number',
     assigned_role,
     'ACTIVE'::public.user_status
   );

@@ -7,6 +7,7 @@ import {
   buildSkillsAnalysisReport,
 } from '../services/skillsAnalysisReport.js'
 import { fetchAgentSourcedLearningLinks } from '../services/skillLearningLinks.js'
+import { findLatestGapAnalysisForProfile } from '../lib/gapAnalysisLookup.js'
 
 const analyzeSchema = z
   .object({
@@ -48,17 +49,7 @@ skillsGapRouter.get(
         ? req.query.targetRole.trim()
         : null
 
-    let query = req.supabase
-      .from('skills_gap_analyses')
-      .select('*')
-      .eq('profile_id', profileId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    if (targetRole) query = query.eq('target_role', targetRole)
-
-    const { data, error } = await query.maybeSingle()
-    throwIfError(error)
+    const data = await findLatestGapAnalysisForProfile(req.supabase, profileId, targetRole)
     if (!data) {
       res.json({ data: null })
       return

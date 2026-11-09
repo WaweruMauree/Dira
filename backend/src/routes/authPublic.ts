@@ -6,6 +6,7 @@ import { asyncHandler, HttpError } from '../middleware/error.js'
 import { createServiceClient } from '../lib/supabase.js'
 import { kenyaPhoneLookupVariants, normalizeKenyaPhone } from '../lib/kenyaPhone.js'
 import { throwIfError } from '../lib/helpers.js'
+import { ensureProfileForAuthUser } from '../lib/ensureProfile.js'
 
 const availabilitySchema = z
   .object({
@@ -97,5 +98,75 @@ authPublicRouter.post(
     }
 
     res.json(result)
+  })
+)
+
+const signupSchema = z.object({
+  email: z.string().email().max(255),
+  password: z.string().min(6).max(128),
+  fullName: z.string().min(1).max(255),
+  phone: z.string().min(1).max(32),
+})
+
+authPublicRouter.post(
+  '/signup',
+  asyncHandler(async (req, res) => {
+    if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new HttpError(
+        503,
+        'Server-assisted signup requires SUPABASE_SERVICE_ROLE_KEY on the API server.'
+      )
+    }
+
+    const body = signupSchema.parse(req.body ?? {})
+    const normalizedPhone = normalizeKenyaPhone(body.phone)
+    if (!normalizedPhone) {
+      throw new HttpError(400, 'Invalid Kenyan phone number')
+    }
+
+    if (await emailTaken(body.email)) {
+      throw new HttpError(409, 'This email already exists')
+    }
+    if (await phoneTaken(normalizedPhone)) {
+      throw new HttpError(409, 'This phone number is already registered')
+    }
+
+    const service = createServiceClient()
+    const { data: created, error } = await service.auth.admin.createUser({
+      email: body.email.trim().toLowerCase(),
+      password: body.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: body.fullName.trim(),
+        phone_number: normalizedPhone,
+        role: 'STUDENT',
+      },
+    })
+
+    if (error) {
+      throw new HttpError(400, error.message)
+    }
+
+    const authUser = created.user
+    if (!authUser) {
+      throw new HttpError(500, 'User creation failed')
+    }
+
+    const { data: profileRow } = await service
+      .from('profiles')
+      .select('id')
+      .eq('id', authUser.id)
+      .maybeSingle()
+
+    if (!profileRow) {
+      await ensureProfileForAuthUser(authUser)
+    }
+
+    res.status(201).json({
+      data: {
+        userId: authUser.id,
+        email: authUser.email,
+      },
+    })
   })
 )

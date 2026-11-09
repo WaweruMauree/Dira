@@ -109,7 +109,6 @@ export interface MePayload {
   profile: {
     id: string
     full_name: string | null
-    username: string | null
     role: 'STUDENT' | 'ADMIN'
     status: 'ACTIVE' | 'SUSPENDED'
     avatar_kind?: 'jazzicon' | 'upload' | null
@@ -242,7 +241,7 @@ export interface AdminPendingReview {
 export interface AdminStudentRow {
   userId: string
   fullName: string | null
-  username: string | null
+  email: string | null
   phoneNumber: string | null
   status: string
   course: string | null

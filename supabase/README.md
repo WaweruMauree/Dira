@@ -18,6 +18,11 @@ PostgreSQL schema for the Dira career guidance platform, mapped from the **16866
 | [`migrations/008_profiles_phone_unique.sql`](migrations/008_profiles_phone_unique.sql) | Unique index on `profiles.phone_number` (Kenyan E.164 at signup) | After 007; dedupe existing phones first |
 | [`migrations/009_career_search_feedback.sql`](migrations/009_career_search_feedback.sql) | Optional job-search feedback from onboarding step 4 | After 008; internal/admin use, not on profile UI |
 | [`migrations/010_career_pathways_update.sql`](migrations/010_career_pathways_update.sql) | UPDATE policy on `career_pathways` for student work-plan edits | After 009 on an existing project |
+| [`migrations/011_profiles_email.sql`](migrations/011_profiles_email.sql) | `profiles.email` + email sync trigger | After 010 |
+| [`migrations/012_chat_attachments.sql`](migrations/012_chat_attachments.sql) | Chat attachment storage | After 011 |
+| [`migrations/015_signup_profiles_repair.sql`](migrations/015_signup_profiles_repair.sql) | Avatar columns + storage (005), drop `admission_number`, fix `handle_new_user` | **Run first** if sign-up shows "Database error creating new user" |
+| [`migrations/013_signup_trigger_repair.sql`](migrations/013_signup_trigger_repair.sql) | Signup trigger + indexes (subset of 015) | Only if you applied 005 separately and still need trigger refresh |
+| [`migrations/014_drop_profiles_username.sql`](migrations/014_drop_profiles_username.sql) | Drop unused `profiles.username` | After 015 when `check:signup` warns |
 
 **Signup phone numbers:** Store as E.164 (`+2547XXXXXXXX`). The API checks duplicates before signup; migration 008 prevents race duplicates at the database.
 
@@ -32,18 +37,19 @@ PostgreSQL schema for the Dira career guidance platform, mapped from the **16866
 
 **After running:**
 1. Enable **Email** auth under Authentication → Providers
-2. Sign up a test student — verify `profiles` and `students` rows are created automatically
-3. Point your TypeScript backend at the Supabase project URL and keys. **Onboarding via the Express API requires `SUPABASE_SERVICE_ROLE_KEY`** in `backend/.env` (Dashboard → Settings → API → service_role). The API verifies the user JWT, then writes with the service role so RLS gaps (e.g. missing `students` UPDATE policy) do not block Complete Setup.
+2. On existing projects, run **015** then **014** if signup fails (verify with `cd backend && npm run check:signup`).
+3. Sign up a test student — verify `profiles` and `students` rows are created automatically
+4. Point your TypeScript backend at the Supabase project URL and keys. **Onboarding via the Express API requires `SUPABASE_SERVICE_ROLE_KEY`** in `backend/.env` (Dashboard → Settings → API → service_role). The API verifies the user JWT, then writes with the service role so RLS gaps (e.g. missing `students` UPDATE policy) do not block Complete Setup.
 
 **Profiles on signup:** New users need the `handle_new_user` trigger from `schema.sql` (creates `profiles` + `students`/`admins`). If an auth user exists without a profile row (partial signup, old session, or trigger never applied), the Express API can **bootstrap** a profile on the first authenticated request when `SUPABASE_SERVICE_ROLE_KEY` is set—this mirrors the trigger but is not a substitute for running the schema in production.
 
 **Optional (direct client writes):** If the browser ever updates `students.course` under the user JWT, apply the policy from [`migrations/004_conversations.sql`](migrations/004_conversations.sql) (`students_update_own`).
 
-**Profile photos:** Run [`migrations/005_profile_avatar.sql`](migrations/005_profile_avatar.sql) so `profiles.avatar_kind`, `avatar_url`, and `jazzicon_seed` exist and the public `avatars` bucket allows users to upload `{user_id}/avatar.webp`.
+**Profile photos:** Migration **015** includes [`005_profile_avatar.sql`](migrations/005_profile_avatar.sql) (`avatar_kind`, `jazzicon_seed`, `avatars` bucket). Fresh installs can run 005 separately if you are not using 015.
 
 **Onboarding (Complete Setup) checklist** — if you see errors like *Could not find the 'jazzicon_seed' column* or failures saving step 4 feedback, run these on your existing project (in order, after prior migrations):
 
-1. [`migrations/005_profile_avatar.sql`](migrations/005_profile_avatar.sql) — `profiles.jazzicon_seed` (required for avatar seed on Complete Setup)
+1. [`migrations/015_signup_profiles_repair.sql`](migrations/015_signup_profiles_repair.sql) or [`005_profile_avatar.sql`](migrations/005_profile_avatar.sql) — `profiles.jazzicon_seed` (required for avatar seed on Complete Setup)
 2. [`migrations/009_career_search_feedback.sql`](migrations/009_career_search_feedback.sql) — `student_profiles.career_search_feedback` (optional “Your voice” step 4)
 
 After DDL, reload the PostgREST schema if the Supabase dashboard prompts you. The API also skips a missing `jazzicon_seed` column gracefully, but avatars and migrations should still be applied in production.
@@ -58,7 +64,6 @@ The ER `Users` table is **not** duplicated. Supabase Auth owns credentials.
 | `email` | `auth.users.email` (canonical); mirrored on `profiles.email` for queries |
 | `password_hash` | Supabase Auth (omitted from public schema) |
 | `phone_number` | `profiles.phone_number` |
-| `username` | `profiles.username` |
 | `role` | `profiles.role` |
 | `status` | `profiles.status` |
 | `created_at` | `profiles.created_at` |
@@ -74,7 +79,6 @@ Pass metadata at signup (via Supabase Auth):
 {
   "role": "STUDENT",
   "full_name": "Jane Doe",
-  "admission_number": "168663",
   "phone_number": "+254700000000",
   "course": "BBIT"
 }

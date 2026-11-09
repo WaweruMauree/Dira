@@ -160,6 +160,6 @@ export function useHomeChat() {
     loadConversation,
     interests,
     hasThread,
-    fullName: meSnapshot?.profile?.full_name ?? meSnapshot?.profile?.username,
+    fullName: meSnapshot?.profile?.full_name,
   }
 }

@@ -80,6 +80,7 @@ export function useCareerPathway() {
   return {
     loading,
     tabLoading,
+    loadingByInterest: pathway.loadingByInterest,
     inlineTabLoading,
     error: pathway.error,
     saveError: pathway.saveError,

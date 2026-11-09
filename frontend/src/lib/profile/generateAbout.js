@@ -56,5 +56,5 @@ export function generateAboutFromMe(me) {
 
 export function getDisplayName(me) {
   if (!me?.profile) return 'Student'
-  return me.profile.full_name?.trim() || me.profile.username?.trim() || 'Student'
+  return me.profile.full_name?.trim() || 'Student'
 }

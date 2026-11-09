@@ -32,18 +32,18 @@ export async function ensureProfileForAuthUser(authUser: User): Promise<void> {
   const normalizedEmail =
     email && email.trim() ? email.trim().toLowerCase() : null
 
+  const fullName =
+    typeof meta.full_name === 'string' && meta.full_name.trim()
+      ? meta.full_name.trim()
+      : typeof meta.name === 'string' && meta.name.trim()
+        ? meta.name.trim()
+        : null
+
   const { error: profileErr } = await service.from('profiles').insert({
     id: userId,
     email: normalizedEmail,
     phone_number: typeof meta.phone_number === 'string' ? meta.phone_number : null,
-    username:
-      typeof meta.username === 'string'
-        ? meta.username
-        : email
-          ? email.split('@')[0]
-          : null,
-    full_name: typeof meta.full_name === 'string' ? meta.full_name : null,
-    admission_number: typeof meta.admission_number === 'string' ? meta.admission_number : null,
+    full_name: fullName,
     role: assignedRole,
     status: 'ACTIVE',
   })

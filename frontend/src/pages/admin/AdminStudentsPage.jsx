@@ -37,7 +37,7 @@ export default function AdminStudentsPage() {
       <h1 className="font-heading text-2xl font-medium text-ink">Manage student accounts</h1>
       <div className="flex gap-2 max-w-md">
         <Input
-          placeholder="Search by name or username"
+          placeholder="Search by name, email, or phone"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && refresh()}
@@ -75,7 +75,7 @@ export default function AdminStudentsPage() {
             ) : (
               data.map((s) => (
                 <tr key={s.userId} className="border-b border-hairline/60">
-                  <td className="p-3 text-ink">{s.fullName || s.username || s.userId}</td>
+                  <td className="p-3 text-ink">{s.fullName || s.email || s.userId}</td>
                   <td className="p-3 text-muted">{s.phoneNumber || '-'}</td>
                   <td className="p-3 text-muted">{s.course || '-'}</td>
                   <td className="p-3">

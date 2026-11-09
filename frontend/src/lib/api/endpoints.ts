@@ -1,6 +1,7 @@
 export const API_ENDPOINTS = {
   health: '/api/v1/health',
   authAvailability: '/api/v1/auth/availability',
+  authSignup: '/api/v1/auth/signup',
   me: '/api/v1/me',
   meStudentProfile: '/api/v1/me/student-profile',
   onboarding: '/api/v1/onboarding',

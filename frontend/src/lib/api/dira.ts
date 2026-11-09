@@ -53,8 +53,19 @@ export const diraApi = {
   getHealth() {
     return apiFetch<{
       status: string
-      features?: { openRouter?: boolean; exa?: boolean }
+      features?: {
+        openRouter?: boolean
+        exa?: boolean
+        supabaseServiceRole?: boolean
+        signupChecks?: boolean
+      }
     }>(API_ENDPOINTS.health)
+  },
+  signup(body: { email: string; password: string; fullName: string; phone: string }) {
+    return apiFetch<{ data: { userId: string; email: string | null } }>(API_ENDPOINTS.authSignup, {
+      method: 'POST',
+      body,
+    })
   },
   checkSignupAvailability(body: { email?: string; phone?: string }) {
     return apiFetch<{ emailTaken?: boolean; phoneTaken?: boolean }>(API_ENDPOINTS.authAvailability, {

@@ -206,7 +206,7 @@ adminRouter.get(
     let query = req.supabase
       .from('profiles')
       .select(
-        'id, full_name, phone_number, username, status, created_at, students ( course, student_profiles ( onboarded ) )',
+        'id, full_name, email, phone_number, status, created_at, students ( course, student_profiles ( onboarded ) )',
         { count: 'exact' }
       )
       .eq('role', 'STUDENT')
@@ -214,7 +214,7 @@ adminRouter.get(
       .range(offset, offset + limit - 1)
 
     if (q) {
-      query = query.or(`full_name.ilike.%${q}%,username.ilike.%${q}%`)
+      query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone_number.ilike.%${q}%`)
     }
 
     const { data, error, count } = await query
@@ -230,7 +230,7 @@ adminRouter.get(
       return {
         userId: p.id,
         fullName: p.full_name,
-        username: p.username,
+        email: (p as { email?: string }).email ?? null,
         phoneNumber: p.phone_number,
         status: p.status,
         course: (student as { course?: string } | null)?.course ?? null,

@@ -136,9 +136,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id               UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email            TEXT,
   phone_number     VARCHAR(20),
-  username         VARCHAR(255),
   full_name        VARCHAR(255),
-  admission_number VARCHAR(50),
   role             public.user_role NOT NULL DEFAULT 'STUDENT',
   status           public.user_status NOT NULL DEFAULT 'ACTIVE',
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -411,28 +409,30 @@ SET search_path = public
 AS $$
 DECLARE
   assigned_role public.user_role;
+  display_name TEXT;
 BEGIN
   assigned_role := COALESCE(
     (NEW.raw_user_meta_data->>'role')::public.user_role,
     'STUDENT'::public.user_role
   );
 
+  display_name := COALESCE(
+    NULLIF(trim(NEW.raw_user_meta_data->>'full_name'), ''),
+    NULLIF(trim(NEW.raw_user_meta_data->>'name'), '')
+  );
+
   INSERT INTO public.profiles (
     id,
     email,
     phone_number,
-    username,
     full_name,
-    admission_number,
     role,
     status
   ) VALUES (
     NEW.id,
     CASE WHEN NEW.email IS NOT NULL AND trim(NEW.email) <> '' THEN lower(trim(NEW.email)) ELSE NULL END,
-    NEW.raw_user_meta_data->>'phone_number',
-    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
-    NEW.raw_user_meta_data->>'full_name',
-    NEW.raw_user_meta_data->>'admission_number',
+    NULLIF(trim(NEW.raw_user_meta_data->>'phone_number'), ''),
+    display_name,
     assigned_role,
     'ACTIVE'::public.user_status
   );

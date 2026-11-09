@@ -5,9 +5,7 @@ export type ProfileRow = {
   id: string
   email: string | null
   phone_number: string | null
-  username: string | null
   full_name: string | null
-  admission_number: string | null
   role: 'STUDENT' | 'ADMIN'
   status: 'ACTIVE' | 'SUSPENDED'
   created_at: string

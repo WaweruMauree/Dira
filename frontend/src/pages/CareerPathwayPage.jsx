@@ -13,6 +13,7 @@ export default function CareerPathwayPage() {
   const {
     loading,
     tabLoading,
+    loadingByInterest,
     inlineTabLoading,
     error,
     saveError,
@@ -51,6 +52,7 @@ export default function CareerPathwayPage() {
     })
   }
 
+  const altRoleBusy = Boolean(altRole.trim() && loadingByInterest[altRole.trim()])
   const titleRole = roadmap?.targetRole || activeInterest || 'your role'
   const totalSkillsInPlan =
     progressSummary?.totalSteps ?? developmentSkillNamesFromReport(gapReport).length
@@ -60,9 +62,6 @@ export default function CareerPathwayPage() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-3 min-w-0">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-wider text-accent font-bold mb-1">
-              Career development
-            </p>
             <h1 className="font-heading text-2xl font-medium text-ink flex items-center gap-2">
               <Map className="h-6 w-6 text-accent shrink-0" />
               Pathway to {titleRole}
@@ -99,13 +98,16 @@ export default function CareerPathwayPage() {
                 type="button"
                 variant="outline"
                 size="icon"
-                disabled={tabLoading || !altRole.trim()}
+                disabled={altRoleBusy || !altRole.trim()}
                 title="Generate pathway for role"
                 onClick={() => regenerateForRole(altRole.trim())}
               >
-                <RefreshCw className={`h-4 w-4 ${tabLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${altRoleBusy ? 'animate-spin' : ''}`} />
               </Button>
             </div>
+            {altRoleBusy && (
+              <p className="text-[11px] text-muted">Analyzing skills and building pathway…</p>
+            )}
           </div>
         )}
       </div>

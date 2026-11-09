@@ -83,9 +83,7 @@ meRouter.patch(
     const body = z
       .object({
         phone_number: z.string().max(20).optional(),
-        username: z.string().max(255).optional(),
         full_name: z.string().max(255).optional(),
-        admission_number: z.string().max(50).optional(),
         avatar_kind: z.enum(['jazzicon', 'upload']).optional(),
         jazzicon_seed: z.string().min(1).max(120).optional(),
         avatar_url: z.string().url().max(2000).nullable().optional(),

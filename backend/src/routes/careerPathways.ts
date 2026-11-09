@@ -11,6 +11,9 @@ import {
   type RoadmapData,
 } from '../types/careerPathwayRoadmap.js'
 import { resolvePathwayRole } from '../services/skillsAnalysisReport.js'
+import { findLatestGapAnalysisForProfile } from '../lib/gapAnalysisLookup.js'
+import { normalizeTargetRole } from '../lib/targetRole.js'
+import { ensureGapAnalysisForRole } from '../services/ensureGapAnalysisForRole.js'
 
 export const careerPathwaysRouter = Router()
 
@@ -29,22 +32,11 @@ const patchBodySchema = z.object({
 })
 
 async function loadLatestGapAnalysis(req: Request, profileId: number, targetRole: string | null) {
-  let query = req.supabase
-    .from('skills_gap_analyses')
-    .select('*')
-    .eq('profile_id', profileId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  if (targetRole) query = query.eq('target_role', targetRole)
-
-  const { data, error } = await query.maybeSingle()
-  throwIfError(error)
-  return data
+  return findLatestGapAnalysisForProfile(req.supabase, profileId, targetRole)
 }
 
 function normalizeRoleLabel(value: string): string {
-  return value.trim().toLowerCase()
+  return normalizeTargetRole(value)
 }
 
 function pathwayRowToResponse(data: Record<string, unknown>) {
@@ -134,17 +126,23 @@ careerPathwaysRouter.post(
     const profileId = (studentProfile as { profile_id: number }).profile_id
 
     const targetRoleParam = body.targetRole?.trim() ?? null
-    const analysis = await loadLatestGapAnalysis(req, profileId, targetRoleParam)
-    if (!analysis) {
-      throw new HttpError(
-        400,
-        targetRoleParam
-          ? `No skills analysis found for "${targetRoleParam}". Run skills analysis for this role first.`
-          : 'No skills analysis found. Complete skills analysis before generating a pathway.'
-      )
-    }
+    let analysis: Record<string, unknown>
+    let report: Record<string, unknown>
+    let analysisCreated = false
 
-    const report = reportFromAnalysisRow(analysis as Record<string, unknown>)
+    if (targetRoleParam) {
+      const ensured = await ensureGapAnalysisForRole(req.supabase, profileId, targetRoleParam)
+      analysis = ensured.analysis
+      report = ensured.report
+      analysisCreated = ensured.created
+    } else {
+      const row = await loadLatestGapAnalysis(req, profileId, null)
+      if (!row) {
+        throw new HttpError(400, 'No skills analysis found. Complete skills analysis before generating a pathway.')
+      }
+      analysis = row as Record<string, unknown>
+      report = reportFromAnalysisRow(analysis)
+    }
     const targetRole =
       targetRoleParam ||
       (typeof report.targetRole === 'string' && report.targetRole.trim()) ||
@@ -190,6 +188,7 @@ careerPathwaysRouter.post(
         targetRoleId: inserted.target_role_id,
         roadmapData: inserted.roadmap_data,
         generatedAt: inserted.generated_at,
+        ...(analysisCreated ? { analysisCreated: true } : {}),
       },
     })
   })

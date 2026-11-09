@@ -83,7 +83,7 @@ function buildProfileResume(
 
   const fullName =
     String((profile as { full_name?: string }).full_name ?? '') ||
-    String((profile as { username?: string }).username ?? 'Student')
+    String((profile as { full_name?: string }).full_name ?? 'Student')
 
   return {
     basics: {

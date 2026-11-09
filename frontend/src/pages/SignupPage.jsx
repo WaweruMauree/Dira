@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/context/AuthProvider'
+import { getPostAuthPath, useAuth } from '@/context/AuthProvider'
 import { useAuthFormNotice } from '@/context/AuthFormNoticeContext'
 import { isSupabaseConfigured } from '@/lib/env'
 import { diraApi } from '@/lib/api/dira'
+import { AgentApiError } from '@/lib/api/client'
 import { normalizeKenyaPhone, validateKenyaNational } from '@/lib/phone/kenyaPhone'
 import {
   AUTH_FLASH_SIGNUP_SUCCESS,
@@ -22,15 +23,21 @@ const PHONE_REGISTERED = 'This phone number is already registered'
 
 function mapSignUpError(error) {
   const msg = error?.message ?? ''
+  if (/database error (saving|creating) new user/i.test(msg)) {
+    return 'Signup failed in the database. In Supabase SQL Editor run migrations/015_signup_profiles_repair.sql (then 014 if needed). From backend run: npm run check:signup.'
+  }
   if (/already registered|already exists|user already/i.test(msg)) {
     return EMAIL_EXISTS
+  }
+  if (/duplicate|unique|already registered/i.test(msg)) {
+    return msg
   }
   return msg || 'Failed to sign up'
 }
 
 export default function SignupPage() {
   const navigate = useNavigate()
-  const { signUp, isConfigured } = useAuth()
+  const { signUp, signIn, isConfigured } = useAuth()
   const { setFormNotice, clearFormNotice } = useAuthFormNotice()
   const [fullName, setFullName] = useState('')
   const [phoneNational, setPhoneNational] = useState('')
@@ -38,11 +45,29 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({ email: '', phone: '' })
+  const [availabilityWarning, setAvailabilityWarning] = useState('')
+  const [useServerSignup, setUseServerSignup] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    diraApi
+      .getHealth()
+      .then((res) => {
+        if (!cancelled) setUseServerSignup(res.features?.signupChecks === true)
+      })
+      .catch(() => {
+        if (!cancelled) setUseServerSignup(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     clearFormNotice()
     setFieldErrors({ email: '', phone: '' })
+    setAvailabilityWarning('')
 
     const phoneValidation = validateKenyaNational(phoneNational)
     if (!phoneValidation.ok) {
@@ -71,15 +96,65 @@ export default function SignupPage() {
             setFieldErrors(nextErrors)
             return
           }
-        } catch {
-          // API unavailable — fall through to Supabase signUp + error mapping
+        } catch (err) {
+          const is503 = err instanceof AgentApiError && err.status === 503
+          if (is503) {
+            setAvailabilityWarning(
+              'Duplicate checks are off (set SUPABASE_SERVICE_ROLE_KEY on the backend). Sign-up may still work.'
+            )
+          }
+        }
+      }
+
+      const trimmedEmail = email.trim()
+
+      if (useServerSignup && isConfigured) {
+        try {
+          await diraApi.signup({
+            email: trimmedEmail,
+            password,
+            fullName: fullName.trim(),
+            phone: normalizedPhone,
+          })
+          const { error: signInErr, session, onboarded, profile: signedProfile } = await signIn({
+            email: trimmedEmail,
+            password,
+          })
+          if (signInErr) {
+            setFormNotice({
+              variant: 'error',
+              message: signInErr.message || 'Account created but sign-in failed. Try logging in.',
+            })
+            return
+          }
+          if (!session) {
+            navigate('/login', { state: authFlashNavigationState(buildSignupConfirmFlash()) })
+            return
+          }
+          navigate(getPostAuthPath(signedProfile, onboarded), {
+            state: authFlashNavigationState(buildAuthFlash('success', AUTH_FLASH_SIGNUP_SUCCESS)),
+          })
+          return
+        } catch (err) {
+          if (err instanceof AgentApiError) {
+            if (err.status === 409 && /email/i.test(err.message)) {
+              setFieldErrors((prev) => ({ ...prev, email: EMAIL_EXISTS }))
+              return
+            }
+            if (err.status === 409 && /phone/i.test(err.message)) {
+              setFieldErrors((prev) => ({ ...prev, phone: PHONE_REGISTERED }))
+              return
+            }
+            setFormNotice({ variant: 'error', message: err.message })
+            return
+          }
         }
       }
 
       const { error, session } = await signUp({
-        email: email.trim(),
+        email: trimmedEmail,
         password,
-        fullName,
+        fullName: fullName.trim(),
         phoneNumber: normalizedPhone,
       })
 
@@ -98,9 +173,7 @@ export default function SignupPage() {
         return
       }
       navigate('/onboarding', {
-        state: authFlashNavigationState(
-          buildAuthFlash('success', AUTH_FLASH_SIGNUP_SUCCESS)
-        ),
+        state: authFlashNavigationState(buildAuthFlash('success', AUTH_FLASH_SIGNUP_SUCCESS)),
       })
     } finally {
       setLoading(false)
@@ -118,6 +191,9 @@ export default function SignupPage() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {availabilityWarning ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">{availabilityWarning}</p>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="fullName">Full name</Label>
             <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
@@ -171,7 +247,7 @@ export default function SignupPage() {
             {loading ? 'Creating account...' : 'Sign up'}
           </Button>
         </form>
-        <p className="text-sm text-muted text-center mt-4">
+        <p className="text-sm text-muted text-center">
           Already have an account?{' '}
           <Link to="/login" className="text-ink underline underline-offset-2">Log in</Link>
         </p>

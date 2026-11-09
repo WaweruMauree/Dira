@@ -195,18 +195,22 @@ export function StudentAppDataProvider({ children }) {
         if (!forceAnalyze) {
           const latest = await diraApi.getLatestSkillsAnalysis(token, interest)
           if (latest.data) {
-            setReportsByInterest((prev) => ({
-              ...prev,
-              [interest]: { ...latest.data, methodology: latest.data.methodology },
-            }))
+            const row = { ...latest.data, methodology: latest.data.methodology }
+            setReportsByInterest((prev) => {
+              const next = { ...prev, [interest]: row }
+              reportsByInterestRef.current = next
+              return next
+            })
             return
           }
         }
         const analyzed = await diraApi.analyzeSkillsGap(token, { targetRole: interest })
-        setReportsByInterest((prev) => ({
-          ...prev,
-          [interest]: { ...analyzed.data, methodology: analyzed.data.methodology },
-        }))
+        const row = { ...analyzed.data, methodology: analyzed.data.methodology }
+        setReportsByInterest((prev) => {
+          const next = { ...prev, [interest]: row }
+          reportsByInterestRef.current = next
+          return next
+        })
       } catch (err) {
         const raw = err instanceof Error ? err.message : 'Analysis failed for this interest'
         setInterestErrors((prev) => ({ ...prev, [interest]: withOpenRouterHint(raw) }))
@@ -448,18 +452,30 @@ export function StudentAppDataProvider({ children }) {
       setPathwayLoadingByInterest((prev) => ({ ...prev, [trimmed]: true }))
       setPathwayError(null)
       try {
-        await ensureSkillsReport(trimmed)
-        const gapRes = await diraApi.getLatestSkillsAnalysis(token, trimmed)
-        if (!gapRes.data) {
-          setPathwayError(`Run skills analysis for "${trimmed}" first.`)
+        if (!reportsByInterestRef.current[trimmed]) {
+          await loadReportForInterest(token, trimmed)
+        }
+        if (!reportsByInterestRef.current[trimmed]) {
+          await loadReportForInterest(token, trimmed, { forceAnalyze: true })
+        }
+        const gapReport = reportsByInterestRef.current[trimmed]
+        if (!gapReport) {
+          setPathwayError(
+            `Could not analyze skills for "${trimmed}". Check OpenRouter on the backend and try again.`
+          )
           return
         }
-        setReportsByInterest((prev) => ({ ...prev, [trimmed]: gapRes.data }))
+        setReportsByInterest((prev) => ({ ...prev, [trimmed]: gapReport }))
         if (!skillsInterests.includes(trimmed)) {
           setSkillsInterests((prev) => [...prev, trimmed])
         }
+        hydratedInterestsRef.current.add(trimmed)
         const generated = await diraApi.generateCareerPathway(token, { targetRole: trimmed })
         setPathwaysByInterest((prev) => ({ ...prev, [trimmed]: generated.data }))
+        pathwaysByInterestRef.current = {
+          ...pathwaysByInterestRef.current,
+          [trimmed]: generated.data,
+        }
         setPathwayActiveInterest(trimmed)
         const firstStep = generated.data?.roadmapData?.steps?.[0]
         setSelectedStepByInterest((prev) => ({ ...prev, [trimmed]: firstStep?.id ?? null }))
@@ -469,7 +485,7 @@ export function StudentAppDataProvider({ children }) {
         setPathwayLoadingByInterest((prev) => ({ ...prev, [trimmed]: false }))
       }
     },
-    [getAccessToken, ensureSkillsReport, skillsInterests]
+    [getAccessToken, loadReportForInterest, skillsInterests]
   )
 
   const loadJobFeed = useCallback(async () => {

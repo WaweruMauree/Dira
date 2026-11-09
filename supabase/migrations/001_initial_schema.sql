@@ -126,7 +126,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   phone_number     VARCHAR(20),
   username         VARCHAR(255),
   full_name        VARCHAR(255),
-  admission_number VARCHAR(50),
   role             public.user_role NOT NULL DEFAULT 'STUDENT',
   status           public.user_status NOT NULL DEFAULT 'ACTIVE',
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -409,7 +408,6 @@ BEGIN
     phone_number,
     username,
     full_name,
-    admission_number,
     role,
     status
   ) VALUES (
@@ -417,7 +415,6 @@ BEGIN
     NEW.raw_user_meta_data->>'phone_number',
     COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'full_name',
-    NEW.raw_user_meta_data->>'admission_number',
     assigned_role,
     'ACTIVE'::public.user_status
   );

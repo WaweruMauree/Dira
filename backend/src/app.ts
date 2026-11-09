@@ -22,6 +22,8 @@ import { adminRouter } from './routes/admin.js'
 import { authPublicRouter } from './routes/authPublic.js'
 import { hasOpenRouter } from './lib/openrouter.js'
 import { hasExaKey } from './lib/exa.js'
+import { asyncHandler } from './middleware/error.js'
+import { createServiceClient } from './lib/supabase.js'
 
 export function createApp() {
   const app = express()
@@ -46,17 +48,33 @@ export function createApp() {
 
   app.use('/api/v1/auth', authPublicRouter)
 
-  app.get('/api/v1/health', (_req, res) => {
-    res.json({
-      status: 'ok',
-      service: 'dira-api',
-      time: new Date().toISOString(),
-      features: {
-        openRouter: hasOpenRouter(),
-        exa: hasExaKey(),
-      },
+  app.get(
+    '/api/v1/health',
+    asyncHandler(async (_req, res) => {
+      const supabaseServiceRole = Boolean(env.SUPABASE_SERVICE_ROLE_KEY)
+      let signupChecks = false
+      if (supabaseServiceRole) {
+        try {
+          const service = createServiceClient()
+          const { error } = await service.from('profiles').select('id').limit(1)
+          signupChecks = !error
+        } catch {
+          signupChecks = false
+        }
+      }
+      res.json({
+        status: 'ok',
+        service: 'dira-api',
+        time: new Date().toISOString(),
+        features: {
+          openRouter: hasOpenRouter(),
+          exa: hasExaKey(),
+          supabaseServiceRole,
+          signupChecks,
+        },
+      })
     })
-  })
+  )
 
   const api = express.Router()
   api.use(requireAuth)
