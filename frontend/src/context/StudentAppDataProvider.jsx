@@ -83,6 +83,7 @@ export function StudentAppDataProvider({ children }) {
   const [pathwayActiveInterest, setPathwayActiveInterest] = useState('')
   const [pathwayError, setPathwayError] = useState(null)
   const [pathwaySaveError, setPathwaySaveError] = useState(null)
+  const [pathwayPlanSaving, setPathwayPlanSaving] = useState(false)
   const [selectedStepByInterest, setSelectedStepByInterest] = useState({})
   const pathwayHydratedRef = useRef(new Set())
   const pathwayInFlightRef = useRef(new Map())
@@ -247,7 +248,7 @@ export function StudentAppDataProvider({ children }) {
       const first = list[0]
       setSkillsActiveInterest((prev) => (prev && list.includes(prev) ? prev : first))
       setPathwayActiveInterest((prev) => (prev && list.includes(prev) ? prev : first))
-      await Promise.all(list.map((interest) => loadReportForInterest(token, interest)))
+      await loadReportForInterest(token, list[0])
     } catch (err) {
       const raw = err instanceof Error ? err.message : 'Could not load skills analysis'
       setSkillsError(withOpenRouterHint(raw))
@@ -278,11 +279,15 @@ export function StudentAppDataProvider({ children }) {
       : interestsFromMe((await diraApi.me(token)).data)
     if (!list.length) return
     setSkillsError(null)
-    setInterestErrors({})
-    await Promise.all(
-      list.map((interest) => loadReportForInterest(token, interest, { forceAnalyze: true }))
-    )
-  }, [getAccessToken, skillsInterests, loadReportForInterest])
+    const target =
+      skillsActiveInterest && list.includes(skillsActiveInterest) ? skillsActiveInterest : list[0]
+    setInterestErrors((prev) => {
+      const next = { ...prev }
+      delete next[target]
+      return next
+    })
+    await loadReportForInterest(token, target, { forceAnalyze: true })
+  }, [getAccessToken, skillsInterests, skillsActiveInterest, loadReportForInterest])
 
   const runEnsurePathway = useCallback(
     async (interest) => {
@@ -378,12 +383,23 @@ export function StudentAppDataProvider({ children }) {
     )
   }, [skillsInterestsLoaded, skillsInterests, ensurePathway])
 
+  const clearPathwayPendingSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    pendingStepsRef.current = null
+    pendingPathwayRef.current = { interest: null, pathwayId: null }
+    setPathwaySaveError(null)
+  }, [])
+
   const setPathwayActiveInterestAndEnsure = useCallback(
     (interest) => {
+      clearPathwayPendingSave()
       setPathwayActiveInterest(interest)
       ensurePathway(interest)
     },
-    [ensurePathway]
+    [clearPathwayPendingSave, ensurePathway]
   )
 
   const flushPathwaySave = useCallback(async () => {
@@ -391,15 +407,59 @@ export function StudentAppDataProvider({ children }) {
     const updates = pendingStepsRef.current
     const { interest, pathwayId } = pendingPathwayRef.current
     pendingStepsRef.current = null
-    if (!token || !pathwayId || !interest || !updates?.length) return
+    if (!token || !interest || !updates?.length) return
+    const record = pathwaysByInterestRef.current[interest]
+    const livePathwayId = record?.pathwayId ?? pathwayId
+    if (!livePathwayId) return
     try {
       setPathwaySaveError(null)
-      const { data } = await diraApi.patchCareerPathway(token, pathwayId, { steps: updates })
+      const { data } = await diraApi.patchCareerPathway(token, livePathwayId, { steps: updates })
       setPathwaysByInterest((prev) => ({ ...prev, [interest]: data }))
+      pathwaysByInterestRef.current = { ...pathwaysByInterestRef.current, [interest]: data }
     } catch (e) {
-      setPathwaySaveError(e?.message || 'Could not save your plan')
+      let msg = e?.message || 'Could not save step status'
+      if (e instanceof AgentApiError && e.status === 404) {
+        msg = 'Pathway was refreshed — select this role again and try again.'
+      }
+      setPathwaySaveError(msg)
     }
   }, [getAccessToken])
+
+  const savePathwayPlanNow = useCallback(
+    async (interest, stepId, fields) => {
+      const token = await getAccessToken()
+      if (!token) throw new Error('Not signed in')
+      const record = pathwaysByInterestRef.current[interest]
+      const pathwayId = record?.pathwayId
+      if (!pathwayId) throw new Error('No pathway loaded for this role')
+
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
+      }
+      pendingStepsRef.current = null
+
+      setPathwayPlanSaving(true)
+      try {
+        const stepPatch = { id: stepId, ...fields }
+        const { data } = await diraApi.patchCareerPathway(token, pathwayId, { steps: [stepPatch] })
+        setPathwaysByInterest((prev) => ({ ...prev, [interest]: data }))
+        pathwaysByInterestRef.current = { ...pathwaysByInterestRef.current, [interest]: data }
+        return data
+      } catch (e) {
+        let msg = e?.message || 'Could not save your plan'
+        if (e instanceof AgentApiError && e.status === 404) {
+          msg = 'Pathway was refreshed — select this role again and try Save plan.'
+        } else if (/not found/i.test(msg)) {
+          msg = 'Pathway was refreshed — select this role again and try Save plan.'
+        }
+        throw new Error(msg)
+      } finally {
+        setPathwayPlanSaving(false)
+      }
+    },
+    [getAccessToken]
+  )
 
   const schedulePathwayStepSave = useCallback(
     (interest, pathwayId, stepPatch) => {
@@ -449,6 +509,7 @@ export function StudentAppDataProvider({ children }) {
       const token = await getAccessToken()
       const trimmed = role?.trim()
       if (!token || !trimmed) return
+      clearPathwayPendingSave()
       setPathwayLoadingByInterest((prev) => ({ ...prev, [trimmed]: true }))
       setPathwayError(null)
       try {
@@ -485,7 +546,7 @@ export function StudentAppDataProvider({ children }) {
         setPathwayLoadingByInterest((prev) => ({ ...prev, [trimmed]: false }))
       }
     },
-    [getAccessToken, loadReportForInterest, skillsInterests]
+    [clearPathwayPendingSave, getAccessToken, loadReportForInterest, skillsInterests]
   )
 
   const loadJobFeed = useCallback(async () => {
@@ -505,10 +566,18 @@ export function StudentAppDataProvider({ children }) {
       const token = await getAccessToken()
       if (!token) return
       const existing = await diraApi.getJobFeed(token)
+      setJobs(existing.data ?? [])
       if (!existing.data?.length) {
-        await diraApi.recommendJobs(token, false)
+        setJobsSyncing(true)
+        try {
+          await diraApi.recommendJobs(token, false)
+          await loadJobFeed()
+        } catch (err) {
+          setJobsError(err instanceof Error ? err.message : 'Failed to load jobs')
+        } finally {
+          setJobsSyncing(false)
+        }
       }
-      await loadJobFeed()
     } catch (err) {
       setJobsError(err instanceof Error ? err.message : 'Failed to load jobs')
     } finally {
@@ -678,7 +747,9 @@ export function StudentAppDataProvider({ children }) {
           setSelectedStepByInterest((prev) => ({ ...prev, [interest]: stepId })),
         error: pathwayError,
         saveError: pathwaySaveError,
+        planSaving: pathwayPlanSaving,
         scheduleStepSave: schedulePathwayStepSave,
+        savePlanNow: savePathwayPlanNow,
         regenerateForRole: regeneratePathwayForRole,
         ensurePathway,
         getGapReport: (interest) => reportsByInterest[interest] ?? null,
@@ -745,7 +816,9 @@ export function StudentAppDataProvider({ children }) {
       selectedStepByInterest,
       pathwayError,
       pathwaySaveError,
+      pathwayPlanSaving,
       schedulePathwayStepSave,
+      savePathwayPlanNow,
       regeneratePathwayForRole,
       ensurePathway,
       jobs,

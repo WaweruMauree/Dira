@@ -65,6 +65,15 @@ export function useCareerPathway() {
     [savePlanStep]
   )
 
+  const savePlanFields = useCallback(
+    async (fields) => {
+      const stepId = selectedStep?.id
+      if (!activeInterest || !stepId) return
+      await pathway.savePlanNow(activeInterest, stepId, fields)
+    },
+    [activeInterest, pathway, selectedStep?.id]
+  )
+
   const curatedResources = gapReport?.curatedResources ?? []
   const filteredResources = useMemo(() => {
     if (!resourcesSkillFilter) return curatedResources
@@ -99,6 +108,8 @@ export function useCareerPathway() {
     selectedStepId,
     setSelectedStepId,
     savePlanStep,
+    savePlanFields,
+    planSaving: pathway.planSaving,
     setStepStatus,
     regenerateForRole: pathway.regenerateForRole,
     curatedResources: filteredResources,

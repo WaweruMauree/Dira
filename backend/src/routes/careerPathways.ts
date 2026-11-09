@@ -239,6 +239,8 @@ careerPathwaysRouter.patch(
         roadmap_data: nextRoadmap,
         generated_at: nextRoadmap.generatedAt,
       })
+      .eq('pathway_id', pathwayId)
+      .eq('profile_id', profileId)
       .select('*')
       .single()
 

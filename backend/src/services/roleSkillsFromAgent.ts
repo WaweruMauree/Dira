@@ -1,9 +1,9 @@
-import { assertOpenRouterConfigured, createOpenRouterClient } from '../lib/openrouter.js'
+import { assertOpenRouterConfigured, createOpenRouterClient, mapOpenRouterError } from '../lib/openrouter.js'
 import { env } from '../config/env.js'
 import { searchExa } from '../lib/exa.js'
 import { HttpError } from '../middleware/error.js'
-import OpenAI from 'openai'
 import { PUNCTUATION_STYLE_RULE, sanitizeAiPunctuation } from '../lib/copyStyle.js'
+import { fallbackRoleSkills } from '../constants/roleSkillFallbacks.js'
 
 export type WebSourcedRoleSkill = {
   name: string
@@ -31,7 +31,23 @@ export async function fetchRequiredSkillsForRoleFromWeb(
   sources: Array<{ title: string; url: string }>
   extractionMethod: string
 }> {
-  assertOpenRouterConfigured()
+  const useFallback = () => {
+    const fb = fallbackRoleSkills(targetRole)
+    if (!fb) throw new HttpError(502, 'Could not determine skills for this role.')
+    return {
+      roleTitle: fb.roleTitle,
+      seniority: null as string | null,
+      skills: fb.skills,
+      sources: [] as Array<{ title: string; url: string }>,
+      extractionMethod: fb.extractionMethod,
+    }
+  }
+
+  try {
+    assertOpenRouterConfigured()
+  } catch {
+    return useFallback()
+  }
 
   const query = `${targetRole} role required skills competencies job description`
   const exaResults = await searchExa(query)
@@ -42,7 +58,7 @@ export async function fetchRequiredSkillsForRoleFromWeb(
     .join('\n\n')
 
   const client = createOpenRouterClient()
-  let completion: OpenAI.Chat.Completions.ChatCompletion
+  let completion
   try {
     completion = await client.chat.completions.create({
       model: env.OPENROUTER_MODEL,
@@ -74,24 +90,19 @@ ${webContext || '(No web snippets; use industry-standard requirements for this r
       ],
     })
   } catch (err) {
-    if (err instanceof OpenAI.APIError) {
-      if (err.status === 401 || err.status === 403) {
-        throw new HttpError(
-          502,
-          'Invalid or unauthorized OpenRouter API key. Check your key and credits at openrouter.ai.'
-        )
-      }
-      if (err.status === 429) {
-        throw new HttpError(502, 'OpenRouter rate limit exceeded. Try again in a moment.')
-      }
-      console.error('[roleSkillsFromAgent] OpenRouter error:', err.status, err.message)
-      throw new HttpError(502, 'OpenRouter could not generate skills for this role.')
+    if (err instanceof HttpError) {
+      console.warn('[roleSkillsFromAgent] OpenRouter unavailable, using fallback:', err.message)
+    } else {
+      console.warn('[roleSkillsFromAgent] OpenRouter error, using fallback:', mapOpenRouterError(err).message)
     }
-    throw err
+    return useFallback()
   }
 
   const content = completion.choices[0]?.message?.content
-  if (!content) throw new HttpError(502, 'Could not extract role skills from agent')
+  if (!content) {
+    console.warn('[roleSkillsFromAgent] empty LLM response, using fallback')
+    return useFallback()
+  }
 
   let parsed: {
     roleTitle?: string
@@ -107,7 +118,8 @@ ${webContext || '(No web snippets; use industry-standard requirements for this r
   try {
     parsed = parseJsonBlock(content) as typeof parsed
   } catch {
-    throw new HttpError(502, 'Agent returned invalid skills JSON')
+    console.warn('[roleSkillsFromAgent] invalid JSON, using fallback')
+    return useFallback()
   }
 
   const skills: WebSourcedRoleSkill[] = (parsed.skills ?? [])
@@ -125,7 +137,8 @@ ${webContext || '(No web snippets; use industry-standard requirements for this r
     .slice(0, 16)
 
   if (skills.length === 0) {
-    throw new HttpError(502, 'Agent did not return any skills for this role')
+    console.warn('[roleSkillsFromAgent] no skills parsed, using fallback')
+    return useFallback()
   }
 
   const extractionMethod = sources.length

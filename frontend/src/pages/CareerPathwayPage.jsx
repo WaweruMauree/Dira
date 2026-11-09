@@ -16,7 +16,6 @@ export default function CareerPathwayPage() {
     loadingByInterest,
     inlineTabLoading,
     error,
-    saveError,
     needsAnalysis,
     needsAnalysisEmpty,
     roadmap,
@@ -27,7 +26,8 @@ export default function CareerPathwayPage() {
     selectedStep,
     selectedStepId,
     setSelectedStepId,
-    savePlanStep,
+    savePlanFields,
+    planSaving,
     setStepStatus,
     regenerateForRole,
     curatedResources,
@@ -159,12 +159,12 @@ export default function CareerPathwayPage() {
 
           <PathwayStepPanel
             step={selectedStep}
-            onSaveStep={savePlanStep}
             onSetStatus={setStepStatus}
+            onSavePlan={savePlanFields}
+            planSaving={planSaving}
             onViewResources={handleViewResources}
             curatedResources={curatedResources}
             showResources={showResources}
-            saveError={saveError}
           />
         </>
       )}

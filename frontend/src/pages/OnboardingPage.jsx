@@ -83,12 +83,12 @@ export default function OnboardingPage() {
         }
         const { data: saved } = await diraApi.onboarding(token, data)
         applyOnboardingComplete(saved)
-        void refreshMe()
       }
 
       setOnboardingComplete(data)
       const flash = buildAuthFlash('success', AUTH_FLASH_ONBOARDING_COMPLETE)
       navigate('/home', { state: authFlashNavigationState(flash) })
+      void refreshMe()
     } catch (err) {
       let message =
         err instanceof AgentApiError

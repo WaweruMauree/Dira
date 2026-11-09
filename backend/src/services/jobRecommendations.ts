@@ -113,7 +113,20 @@ function buildSearchQueries(ctx: StudentRecommendContext): string[] {
   }
   if (ctx.course) queries.add(ctx.course)
   if (queries.size === 0) queries.add('graduate internship')
-  return [...queries].slice(0, 8)
+  return [...queries].slice(0, 4)
+}
+
+const PROVIDER_TIMEOUT_MS = 12_000
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+    ])
+  } catch {
+    return null
+  }
 }
 
 function dedupeKey(job: UserJobInput): string {
@@ -121,18 +134,17 @@ function dedupeKey(job: UserJobInput): string {
 }
 
 export async function fetchJobsForQuery(query: string): Promise<UserJobInput[]> {
-  const collected: UserJobInput[] = []
   const attempts = [
-    () => fetchHimalayas(query),
-    () => fetchJobicy(query),
-    () => fetchAdzuna(query),
-    () => fetchArbeitnowFiltered(query),
+    () => withTimeout(fetchHimalayas(query), PROVIDER_TIMEOUT_MS),
+    () => withTimeout(fetchJobicy(query), PROVIDER_TIMEOUT_MS),
+    () => withTimeout(fetchAdzuna(query), PROVIDER_TIMEOUT_MS),
+    () => withTimeout(fetchArbeitnowFiltered(query), PROVIDER_TIMEOUT_MS),
   ]
-  for (const run of attempts) {
-    try {
-      collected.push(...(await run()))
-    } catch {
-      /* skip provider */
+  const settled = await Promise.allSettled(attempts.map((run) => run()))
+  const collected: UserJobInput[] = []
+  for (const result of settled) {
+    if (result.status === 'fulfilled' && result.value) {
+      collected.push(...result.value)
     }
   }
   return collected

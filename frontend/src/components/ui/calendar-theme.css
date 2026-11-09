@@ -1,0 +1,50 @@
+[data-slot='calendar'] {
+  --rdp-accent-color: var(--color-accent);
+  --rdp-accent-background-color: color-mix(in srgb, var(--color-accent) 35%, white);
+  --rdp-selected-border: 2px solid var(--color-accent);
+  --rdp-today-color: var(--color-ink);
+}
+
+.dark [data-slot='calendar'] {
+  --rdp-accent-background-color: color-mix(in srgb, var(--color-accent) 25%, var(--color-card-bg));
+}
+
+[data-slot='calendar'] .rdp-selected .rdp-day_button {
+  background-color: var(--color-accent);
+  color: var(--color-accent-foreground);
+  border-radius: 9999px;
+  border: 2px solid var(--color-accent);
+  font-weight: 500;
+}
+
+[data-slot='calendar'] .rdp-today:not(.rdp-selected) .rdp-day_button {
+  background-color: transparent;
+  border: 1px solid var(--color-hairline);
+  border-radius: 9999px;
+  color: var(--color-ink);
+}
+
+[data-slot='calendar'] .rdp-today.rdp-selected .rdp-day_button {
+  border: 2px solid var(--color-accent);
+}
+
+[data-slot='calendar'] .rdp-outside {
+  opacity: 0.55;
+  color: var(--color-muted);
+}
+
+[data-slot='calendar'] .rdp-disabled:not(.rdp-selected) {
+  opacity: 0.45;
+  color: var(--color-muted);
+}
+
+[data-slot='calendar'] .rdp-button_previous,
+[data-slot='calendar'] .rdp-button_next {
+  border-color: var(--color-hairline);
+  background-color: var(--color-card-bg);
+}
+
+[data-slot='calendar'] .rdp-button_previous:hover,
+[data-slot='calendar'] .rdp-button_next:hover {
+  background-color: color-mix(in srgb, var(--color-hairline) 50%, transparent);
+}

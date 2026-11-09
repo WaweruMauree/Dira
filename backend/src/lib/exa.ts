@@ -30,25 +30,33 @@ function mapExaResult(item: ExaRawResult, excerptLen: number): ExaSearchResult {
   }
 }
 
+const EXA_TIMEOUT_MS = 8_000
+
 async function exaSearch(query: string, numResults: number, excerptLen: number): Promise<ExaSearchResult[]> {
   if (!hasExaKey()) return []
 
-  const res = await fetch('https://api.exa.ai/search', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.EXA_API_KEY}`,
-    },
-    body: JSON.stringify({
-      query,
-      type: 'auto',
-      numResults,
-      contents: {
-        highlights: true,
-        text: { maxCharacters: excerptLen },
+  let res: Response
+  try {
+    res = await fetch('https://api.exa.ai/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.EXA_API_KEY}`,
       },
-    }),
-  })
+      body: JSON.stringify({
+        query,
+        type: 'auto',
+        numResults,
+        contents: {
+          highlights: true,
+          text: { maxCharacters: excerptLen },
+        },
+      }),
+      signal: AbortSignal.timeout(EXA_TIMEOUT_MS),
+    })
+  } catch {
+    return []
+  }
 
   if (!res.ok) return []
 

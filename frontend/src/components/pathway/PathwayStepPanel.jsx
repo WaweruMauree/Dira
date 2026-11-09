@@ -1,15 +1,15 @@
 import { Button } from '@/components/ui/button'
-import PathwayPlanEditor from '@/components/pathway/PathwayPlanEditor'
+import PathwayPlanSection from '@/components/pathway/PathwayPlanSection'
 import SkillsCuratedResources from '@/components/skills/SkillsCuratedResources'
 
 export default function PathwayStepPanel({
   step,
-  onSaveStep,
   onSetStatus,
   onViewResources,
+  onSavePlan,
+  planSaving = false,
   curatedResources = [],
   showResources = false,
-  saveError,
 }) {
   if (!step) {
     return (
@@ -64,7 +64,7 @@ export default function PathwayStepPanel({
         </Button>
       </div>
 
-      <PathwayPlanEditor step={step} onChange={onSaveStep} saveError={saveError} />
+      <PathwayPlanSection step={step} onSavePlan={onSavePlan} saving={planSaving} />
 
       {showResources && curatedResources.length > 0 && (
         <div id="pathway-linked-resources" className="pt-2 border-t border-hairline">

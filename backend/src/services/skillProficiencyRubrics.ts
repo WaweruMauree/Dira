@@ -10,10 +10,11 @@ import {
   type SkillRubricCategory,
   SKILL_LEVEL_IDS,
 } from '../lib/skillLevelFramework.js'
+import { buildGenericSkillRubric } from '../lib/genericSkillRubric.js'
 
 const CACHE_VERSION = 'v1'
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
-const BATCH_SIZE = 24
+const BATCH_SIZE = 6
 
 type CacheEntry = { rubric: SkillProficiencyRubric; expiresAt: number }
 
@@ -147,7 +148,7 @@ async function generateBatch(
   }
 
   if (out.length === 0) {
-    throw new HttpError(502, 'Model did not return valid rubrics for requested skills')
+    return items.map((item) => buildGenericSkillRubric(item.skillName, item.category))
   }
 
   return out
@@ -176,12 +177,27 @@ export async function getRubricsForSkills(input: {
   for (let i = 0; i < missing.length; i += BATCH_SIZE) {
     chunks.push(missing.slice(i, i + BATCH_SIZE))
   }
-  const batchResults = await Promise.all(
-    chunks.map((chunk) => generateBatch(input.courseCatalogId, input.courseLabel, chunk))
-  )
-  for (const generated of batchResults) {
-    for (const rubric of generated) {
-      result[rubric.skillName] = rubric
+  for (const chunk of chunks) {
+    try {
+      const generated = await generateBatch(input.courseCatalogId, input.courseLabel, chunk)
+      for (const rubric of generated) {
+        result[rubric.skillName] = rubric
+      }
+    } catch {
+      for (const item of chunk) {
+        if (!result[item.skillName]) {
+          const generic = buildGenericSkillRubric(item.skillName, item.category)
+          result[item.skillName] = generic
+          setCached(input.courseCatalogId, generic)
+        }
+      }
+    }
+  }
+
+  for (const item of missing) {
+    if (!result[item.skillName]) {
+      const generic = buildGenericSkillRubric(item.skillName, item.category)
+      result[item.skillName] = generic
     }
   }
 

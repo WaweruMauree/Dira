@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pencil, User } from 'lucide-react'
 import ProfileCareerView from '@/components/profile/ProfileCareerView'
 import ProfileCareerEditor from '@/components/profile/ProfileCareerEditor'
+import AuthInlineNotice from '@/components/auth/AuthInlineNotice'
 
 function TabButton({ active, onClick, children, icon: Icon }) {
   return (
@@ -22,11 +23,30 @@ function TabButton({ active, onClick, children, icon: Icon }) {
 
 export default function ProfileCareerSection({ me, onSave, saving, onSaved }) {
   const [tab, setTab] = useState('profile')
+  const [careerNotice, setCareerNotice] = useState(null)
+
+  const handleNotice = (notice) => {
+    setCareerNotice(notice)
+  }
+
+  const switchTab = (next) => {
+    setTab(next)
+    if (next === 'edit') setCareerNotice(null)
+  }
 
   const handleSave = async (payload) => {
-    await onSave(payload)
-    setTab('profile')
-    onSaved?.()
+    try {
+      await onSave(payload)
+      setCareerNotice({ variant: 'success', message: 'Career details updated' })
+      setTab('profile')
+      onSaved?.()
+    } catch (err) {
+      setCareerNotice({
+        variant: 'error',
+        message: err instanceof Error ? err.message : 'Could not save',
+      })
+      throw err
+    }
   }
 
   return (
@@ -34,19 +54,42 @@ export default function ProfileCareerSection({ me, onSave, saving, onSaved }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-heading text-lg font-medium text-ink">Career progression</h2>
         <div className="flex gap-2">
-          <TabButton active={tab === 'profile'} onClick={() => setTab('profile')} icon={User}>
+          <TabButton active={tab === 'profile'} onClick={() => switchTab('profile')} icon={User}>
             Profile
           </TabButton>
-          <TabButton active={tab === 'edit'} onClick={() => setTab('edit')} icon={Pencil}>
+          <TabButton active={tab === 'edit'} onClick={() => switchTab('edit')} icon={Pencil}>
             Edit
           </TabButton>
         </div>
       </div>
 
+      {careerNotice ? (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            className="w-auto text-left"
+            onClick={() => setCareerNotice(null)}
+            aria-label="Dismiss message"
+          >
+            <AuthInlineNotice
+              variant={careerNotice.variant}
+              message={careerNotice.message}
+              className="mx-0"
+            />
+          </button>
+        </div>
+      ) : null}
+
       {tab === 'profile' ? (
         <ProfileCareerView me={me} />
       ) : (
-        <ProfileCareerEditor me={me} onSave={handleSave} saving={saving} embedded />
+        <ProfileCareerEditor
+          me={me}
+          onSave={handleSave}
+          saving={saving}
+          embedded
+          onNotice={handleNotice}
+        />
       )}
     </section>
   )

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,7 +36,7 @@ function interestNamesFromMe(me) {
   return (me.interests ?? []).map((r) => r.area).filter(Boolean)
 }
 
-export default function ProfileCareerEditor({ me, onSave, saving, embedded }) {
+export default function ProfileCareerEditor({ me, onSave, saving, embedded, onNotice }) {
   const profileKey = useMemo(() => {
     return getProfileKey({
       courseCatalogId: OTHER_COURSE_ID,
@@ -120,15 +119,18 @@ export default function ProfileCareerEditor({ me, onSave, saving, embedded }) {
 
   const handleSave = async () => {
     if (!year) {
-      toast.error('Select your year of study')
+      onNotice?.({ variant: 'error', message: 'Select your year of study' })
       return
     }
     if (interests.length === 0) {
-      toast.error('Add at least one career interest')
+      onNotice?.({ variant: 'error', message: 'Add at least one career interest' })
       return
     }
     if (Object.keys(technical).length === 0 || Object.keys(soft).length === 0) {
-      toast.error('Keep at least one technical and one soft skill selected')
+      onNotice?.({
+        variant: 'error',
+        message: 'Keep at least one technical and one soft skill selected',
+      })
       return
     }
     try {
@@ -138,9 +140,8 @@ export default function ProfileCareerEditor({ me, onSave, saving, embedded }) {
         technicalSkills: technical,
         softSkills: soft,
       })
-      toast.success('Career details updated')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save')
+    } catch {
+      /* parent sets error notice */
     }
   }
 

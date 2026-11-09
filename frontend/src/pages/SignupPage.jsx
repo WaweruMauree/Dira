@@ -37,7 +37,7 @@ function mapSignUpError(error) {
 
 export default function SignupPage() {
   const navigate = useNavigate()
-  const { signUp, signIn, isConfigured } = useAuth()
+  const { signUp, signIn, isConfigured, refreshMe } = useAuth()
   const { setFormNotice, clearFormNotice } = useAuthFormNotice()
   const [fullName, setFullName] = useState('')
   const [phoneNational, setPhoneNational] = useState('')
@@ -83,7 +83,7 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
-      if (isSupabaseConfigured() && isConfigured) {
+      if (useServerSignup && isSupabaseConfigured() && isConfigured) {
         try {
           const availability = await diraApi.checkSignupAvailability({
             email: email.trim(),
@@ -131,9 +131,11 @@ export default function SignupPage() {
             navigate('/login', { state: authFlashNavigationState(buildSignupConfirmFlash()) })
             return
           }
-          navigate(getPostAuthPath(signedProfile, onboarded), {
+          const target = getPostAuthPath(signedProfile, onboarded)
+          navigate(target, {
             state: authFlashNavigationState(buildAuthFlash('success', AUTH_FLASH_SIGNUP_SUCCESS)),
           })
+          void refreshMe()
           return
         } catch (err) {
           if (err instanceof AgentApiError) {
@@ -175,13 +177,24 @@ export default function SignupPage() {
       navigate('/onboarding', {
         state: authFlashNavigationState(buildAuthFlash('success', AUTH_FLASH_SIGNUP_SUCCESS)),
       })
+      void refreshMe()
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md relative">
+      {loading ? (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-xl bg-card-bg/90 backdrop-blur-[2px]"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <p className="text-sm font-medium text-ink">Creating your account…</p>
+          <p className="text-xs text-muted">This usually takes a few seconds</p>
+        </div>
+      ) : null}
       <CardHeader>
         <CardTitle>Sign up</CardTitle>
         <CardDescription>

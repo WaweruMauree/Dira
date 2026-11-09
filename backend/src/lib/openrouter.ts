@@ -20,6 +20,7 @@ export function createOpenRouterClient(): OpenAI {
   return new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: env.OPENROUTER_API_KEY,
+    timeout: 45_000,
     defaultHeaders: {
       'HTTP-Referer': env.OPENROUTER_SITE_URL,
       'X-Title': 'Dira',
