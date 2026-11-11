@@ -106,6 +106,7 @@ skillsGapRouter.post(
     }
 
     const links = await fetchAgentSourcedLearningLinks({
+      targetRole: body.targetRole.trim(),
       skills: skillNames?.length ? skillNames : undefined,
       prioritisedPlan,
       gaps,

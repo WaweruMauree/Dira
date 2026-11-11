@@ -10,12 +10,19 @@ function sortResources(resources) {
   })
 }
 
-export default function SkillsCuratedResources({ resources }) {
+export default function SkillsCuratedResources({
+  resources,
+  maxItems,
+  emptyMessage = 'No curated resources in catalog for these skills yet.',
+}) {
   if (!resources?.length) {
-    return <p className="text-xs text-muted">No curated resources in catalog for these skills yet.</p>
+    return <p className="text-xs text-muted">{emptyMessage}</p>
   }
 
-  const items = sortResources(resources)
+  let items = sortResources(resources)
+  if (maxItems != null && maxItems > 0) {
+    items = items.slice(0, maxItems)
+  }
 
   return (
     <div className="space-y-3">
@@ -44,7 +51,7 @@ export default function SkillsCuratedResources({ resources }) {
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-hairline">
               <Button variant="accent" size="sm" className="gap-1.5" asChild>
                 <a href={item.url} target="_blank" rel="noopener noreferrer">
-                  View Course
+                  View resource
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </Button>

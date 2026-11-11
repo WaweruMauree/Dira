@@ -30,7 +30,6 @@ export default function CareerPathwayPage() {
     planSaving,
     setStepStatus,
     regenerateForRole,
-    curatedResources,
     setResourcesSkillFilter,
     resourcesSkillFilter,
     progressSummary,
@@ -163,7 +162,8 @@ export default function CareerPathwayPage() {
             onSavePlan={savePlanFields}
             planSaving={planSaving}
             onViewResources={handleViewResources}
-            curatedResources={curatedResources}
+            gapReport={gapReport}
+            targetRole={activeInterest}
             showResources={showResources}
           />
         </>

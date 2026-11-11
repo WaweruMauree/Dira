@@ -1,12 +1,12 @@
 import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { diraApi } from '@/lib/api/dira'
 import { useAdminPoll } from '@/hooks/useAdminPoll'
 
 export default function AdminModerationPage() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken } = useAdminSession()
 
   const load = useCallback(async () => {
     const token = await getAccessToken()

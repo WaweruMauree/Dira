@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import PathwayPlanSection from '@/components/pathway/PathwayPlanSection'
-import SkillsCuratedResources from '@/components/skills/SkillsCuratedResources'
+import PathwayStepResources from '@/components/pathway/PathwayStepResources'
 
 export default function PathwayStepPanel({
   step,
@@ -8,7 +8,8 @@ export default function PathwayStepPanel({
   onViewResources,
   onSavePlan,
   planSaving = false,
-  curatedResources = [],
+  gapReport = null,
+  targetRole = '',
   showResources = false,
 }) {
   if (!step) {
@@ -66,13 +67,8 @@ export default function PathwayStepPanel({
 
       <PathwayPlanSection step={step} onSavePlan={onSavePlan} saving={planSaving} />
 
-      {showResources && curatedResources.length > 0 && (
-        <div id="pathway-linked-resources" className="pt-2 border-t border-hairline">
-          <p className="font-medium text-sm text-ink mb-2">
-            Resources for {step.skillName}
-          </p>
-          <SkillsCuratedResources resources={curatedResources} />
-        </div>
+      {showResources && (
+        <PathwayStepResources step={step} gapReport={gapReport} targetRole={targetRole} />
       )}
     </div>
   )

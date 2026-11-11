@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
+import { Check } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import SkillsAnalysisMethodology from '@/components/skills/SkillsAnalysisMethodology'
-import SkillsCuratedResources from '@/components/skills/SkillsCuratedResources'
 import { EMPTY_FIELD } from '@/constants/copyStyle'
 
 const STATUS_VARIANT = {
@@ -12,9 +12,27 @@ const STATUS_VARIANT = {
 }
 
 const STATUS_LABEL = {
-  met: 'Met',
   upskill: 'Upskill',
   gap: 'Gap',
+}
+
+function SkillStatusBadge({ status }) {
+  if (status === 'met') {
+    return (
+      <span
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-emerald-500 text-emerald-600"
+        aria-label="Met"
+        title="Met"
+      >
+        <Check className="h-4 w-4" strokeWidth={2.5} />
+      </span>
+    )
+  }
+  return (
+    <Badge variant={STATUS_VARIANT[status] ?? 'outline'} className="text-[10px]">
+      {STATUS_LABEL[status] ?? status}
+    </Badge>
+  )
 }
 
 export default function SkillsAnalysisInterestPanel({ report }) {
@@ -64,9 +82,7 @@ export default function SkillsAnalysisInterestPanel({ report }) {
                 <td className="py-2 pr-2 text-muted">{row.currentLevelLabel}</td>
                 <td className="py-2 pr-2 text-muted">{row.requiredLevelLabel}</td>
                 <td className="py-2">
-                  <Badge variant={STATUS_VARIANT[row.status] ?? 'outline'} className="text-[10px]">
-                    {STATUS_LABEL[row.status] ?? row.status}
-                  </Badge>
+                  <SkillStatusBadge status={row.status} />
                 </td>
               </tr>
             ))}
@@ -96,10 +112,6 @@ export default function SkillsAnalysisInterestPanel({ report }) {
         </div>
       )}
 
-      <div>
-        <p className="font-medium text-sm text-ink mb-2">Curated learning (Dira catalog)</p>
-        <SkillsCuratedResources resources={report.curatedResources} />
-      </div>
     </div>
   )
 }

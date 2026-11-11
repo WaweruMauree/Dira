@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, getPostAuthPath } from '@/context/AuthProvider'
+import { useAdminAuth } from '@/context/AdminAuthProvider'
 import { useAuthFormNotice } from '@/context/AuthFormNoticeContext'
 import { clearOnboardingState } from '@/lib/storage'
 import {
@@ -15,7 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { signIn, isConfigured, profile } = useAuth()
+  const [searchParams] = useSearchParams()
+  const isAdminLogin = import.meta.env.DEV && searchParams.get('account') === 'admin'
+
+  const studentAuth = useAuth()
+  const adminAuth = useAdminAuth()
+  const { signIn, isConfigured, profile } = isAdminLogin ? adminAuth : studentAuth
+
   const { setFormNotice, clearFormNotice } = useAuthFormNotice()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -34,7 +41,8 @@ export default function LoginPage() {
     }
 
     const flash = buildAuthFlash('success', AUTH_FLASH_LOGIN_SUCCESS)
-    navigate(getPostAuthPath(signedProfile ?? profile, done), {
+    const destination = isAdminLogin ? '/admin' : getPostAuthPath(signedProfile ?? profile, done)
+    navigate(destination, {
       state: authFlashNavigationState(flash),
     })
   }
@@ -42,9 +50,11 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Log in</CardTitle>
+        <CardTitle>{isAdminLogin ? 'Admin log in' : 'Log in'}</CardTitle>
         <CardDescription>
-          Access your career intelligence dashboard.
+          {isAdminLogin
+            ? 'Sign in to the admin dashboard.'
+            : 'Access your career intelligence dashboard.'}
           {!isConfigured && ' (Dev mode - any credentials work)'}
         </CardDescription>
       </CardHeader>
@@ -84,6 +94,13 @@ export default function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link to="/signup" className="text-ink underline underline-offset-2">Sign up</Link>
         </p>
+        {import.meta.env.DEV && isAdminLogin && (
+          <p className="text-center mt-3">
+            <Link to="/login" className="text-xs text-muted hover:text-ink underline underline-offset-2">
+              Student login instead
+            </Link>
+          </p>
+        )}
         {!isConfigured && (
           <button
             type="button"

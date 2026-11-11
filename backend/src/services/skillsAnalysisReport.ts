@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { MISSING_LEVEL_LABEL } from '../lib/copyStyle.js'
 import { throwIfError } from '../lib/helpers.js'
 import { fetchRequiredSkillsForRoleFromWeb } from './roleSkillsFromAgent.js'
+import { fetchAgentSourcedLearningLinks } from './skillLearningLinks.js'
 
 export type SkillRowStatus = 'met' | 'upskill' | 'gap'
 
@@ -350,7 +351,9 @@ async function buildWebSourcedSkillsReport(
       : 3
   const requiredLevel = avgRequired === 1 || avgRequired === 5 ? avgRequired : 3
 
-  const curatedResources = await loadCuratedBySkillNames(supabase, [...gaps, ...upskills])
+  const curatedResources = await loadCuratedForTargetRole(supabase, targetRole, {
+    extraSkillNames: skills.map((s) => s.name),
+  })
 
   const roleTitle = web.roleTitle
   const prioritisedPlan = buildPrioritisedPlanFromSkills(skills)
@@ -364,7 +367,7 @@ async function buildWebSourcedSkillsReport(
     sources: web.sources,
   })
 
-  const report = {
+  const reportBase = {
     targetRole,
     pathwayRole: {
       roleId: null,
@@ -383,10 +386,101 @@ async function buildWebSourcedSkillsReport(
     requiredLevel,
     requiredLevelLabel: 'Varies by skill',
     webSources: web.sources,
-    agentSourcedResources: [],
   }
 
+  const report = await attachAgentResources(reportBase)
+
   return { report, methodology }
+}
+
+type CuratedResourceRow = {
+  id: number
+  title: string
+  url: string
+  source: string
+  description: string | null
+  skillId: number | null
+  skillName: string | null
+}
+
+function mapLearningResourceRows(
+  resources: Array<Record<string, unknown>>
+): CuratedResourceRow[] {
+  return resources.map((r) => ({
+    id: r.id as number,
+    title: r.title as string,
+    url: r.url as string,
+    source: String(r.source),
+    description: (r.description as string | null) ?? null,
+    skillId: (r.skill_id as number | null) ?? null,
+    skillName: (r.skills as { name?: string } | null)?.name ?? null,
+  }))
+}
+
+async function loadCuratedForTargetRole(
+  supabase: SupabaseClient,
+  targetRole: string,
+  opts: { roleSkillIds?: number[]; extraSkillNames?: string[] }
+): Promise<CuratedResourceRow[]> {
+  const byId = new Map<number, CuratedResourceRow>()
+  const cap = 12
+
+  if (opts.roleSkillIds?.length) {
+    const { data: resources, error } = await supabase
+      .from('learning_resources')
+      .select('id, title, url, source, description, skill_id, skills (name)')
+      .in('skill_id', opts.roleSkillIds)
+    throwIfError(error)
+    for (const row of mapLearningResourceRows(resources ?? [])) {
+      byId.set(row.id, row)
+    }
+  }
+
+  const term = targetRole.trim()
+  if (term && byId.size < cap) {
+    const pattern = `%${term.replace(/%/g, '')}%`
+    const { data: roleHits, error: roleErr } = await supabase
+      .from('learning_resources')
+      .select('id, title, url, source, description, skill_id, skills (name)')
+      .or(`title.ilike.${pattern},description.ilike.${pattern}`)
+      .limit(cap)
+    throwIfError(roleErr)
+    for (const row of mapLearningResourceRows(roleHits ?? [])) {
+      byId.set(row.id, row)
+    }
+  }
+
+  if (opts.extraSkillNames?.length) {
+    const fromNames = await loadCuratedBySkillNames(supabase, opts.extraSkillNames)
+    for (const row of fromNames) {
+      byId.set(row.id, row)
+    }
+  }
+
+  return [...byId.values()].slice(0, cap)
+}
+
+async function attachAgentResources<
+  T extends {
+    gaps: string[]
+    upskills: string[]
+    prioritisedPlan: PrioritisedPlanStep[]
+    targetRole: string
+  },
+>(report: T): Promise<T & { agentSourcedResources: unknown[]; agentSourcedResourcesMeta?: unknown }> {
+  const links = await fetchAgentSourcedLearningLinks({
+    targetRole: report.targetRole,
+    gaps: report.gaps,
+    upskills: report.upskills,
+    prioritisedPlan: report.prioritisedPlan,
+  })
+  return {
+    ...report,
+    agentSourcedResources: links.agentSourcedResources,
+    ...(links.agentSourcedResourcesMeta
+      ? { agentSourcedResourcesMeta: links.agentSourcedResourcesMeta }
+      : {}),
+  }
 }
 
 async function loadCuratedBySkillNames(supabase: SupabaseClient, skillNames: string[]) {
@@ -474,33 +568,11 @@ async function buildCatalogSkillsReport(
   const upskills = skills.filter((s) => s.status === 'upskill').map((s) => s.name)
   const strengths = skills.filter((s) => s.status === 'met').map((s) => s.name)
 
-  const needResourceIds = [...gapSkillIds, ...upskillSkillIds]
-  let curatedResources: Array<{
-    id: number
-    title: string
-    url: string
-    source: string
-    description: string | null
-    skillId: number | null
-    skillName: string | null
-  }> = []
-
-  if (needResourceIds.length > 0) {
-    const { data: resources, error: lrError } = await supabase
-      .from('learning_resources')
-      .select('id, title, url, source, description, skill_id, skills (name)')
-      .in('skill_id', needResourceIds)
-    throwIfError(lrError)
-    curatedResources = (resources ?? []).map((r) => ({
-      id: r.id as number,
-      title: r.title as string,
-      url: r.url as string,
-      source: String(r.source),
-      description: (r.description as string | null) ?? null,
-      skillId: (r.skill_id as number | null) ?? null,
-      skillName: (r.skills as { name?: string } | null)?.name ?? null,
-    }))
-  }
+  const allRoleSkillIds = (roleSkillRows ?? []).map((row) => row.skill_id as number)
+  const curatedResources = await loadCuratedForTargetRole(supabase, targetRole, {
+    roleSkillIds: allRoleSkillIds,
+    extraSkillNames: [...gaps, ...upskills],
+  })
 
   const prioritisedPlan = buildPrioritisedPlanFromSkills(skills)
 
@@ -514,7 +586,7 @@ async function buildCatalogSkillsReport(
     requiredLevel,
   })
 
-  const report = {
+  const reportBase = {
     targetRole,
     skillsSource: 'pathway_catalog' as const,
     pathwayRole: {
@@ -532,8 +604,9 @@ async function buildCatalogSkillsReport(
     prioritisedPlan,
     requiredLevel,
     requiredLevelLabel: levelLabel(requiredLevel),
-    agentSourcedResources: [],
   }
+
+  const report = await attachAgentResources(reportBase)
 
   return { report, methodology }
 }

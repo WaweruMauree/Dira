@@ -66,7 +66,7 @@ export function useStudentAppData() {
 }
 
 export function StudentAppDataProvider({ children }) {
-  const { getAccessToken, user } = useAuth()
+  const { getAccessToken, user, refreshMe } = useAuth()
 
   const [skillsInterests, setSkillsInterests] = useState([])
   const [reportsByInterest, setReportsByInterest] = useState({})
@@ -540,13 +540,28 @@ export function StudentAppDataProvider({ children }) {
         setPathwayActiveInterest(trimmed)
         const firstStep = generated.data?.roadmapData?.steps?.[0]
         setSelectedStepByInterest((prev) => ({ ...prev, [trimmed]: firstStep?.id ?? null }))
+        try {
+          const { data: me } = await diraApi.me(token)
+          const current = interestsFromMe(me)
+          if (!current.some((i) => i.toLowerCase() === trimmed.toLowerCase())) {
+            await diraApi.patchStudentProfile(token, { careerInterests: [...current, trimmed] })
+            const { data: fresh } = await diraApi.me(token)
+            setCachedMe(fresh)
+            setSkillsInterests(interestsFromMe(fresh))
+            await refreshMe()
+          }
+        } catch (persistErr) {
+          if (import.meta.env.DEV) {
+            console.warn('[pathway] Could not persist career interest', persistErr)
+          }
+        }
       } catch (e) {
         setPathwayError(e?.message || 'Could not generate pathway')
       } finally {
         setPathwayLoadingByInterest((prev) => ({ ...prev, [trimmed]: false }))
       }
     },
-    [clearPathwayPendingSave, getAccessToken, loadReportForInterest, skillsInterests]
+    [clearPathwayPendingSave, getAccessToken, loadReportForInterest, refreshMe, skillsInterests]
   )
 
   const loadJobFeed = useCallback(async () => {

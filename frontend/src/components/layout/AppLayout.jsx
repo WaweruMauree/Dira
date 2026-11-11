@@ -1,18 +1,11 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Compass, Home, LogOut, MessageSquare, Plus, Briefcase, User, Map } from 'lucide-react'
+import { Compass, Home, LogOut, Plus, Briefcase, User, Map } from 'lucide-react'
 import DiraLogo from '@/components/DiraLogo'
 import ThemeToggle from '@/components/ThemeToggle'
 import UserAvatar from '@/components/profile/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthProvider'
 import { getDisplayName } from '@/lib/profile/generateAbout'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { AGENT_MODES } from '@/lib/agent/tools/registry'
 import { cn } from '@/lib/utils'
 import RouterAuthFlashBar from '@/components/auth/RouterAuthFlashBar'
 import { StudentAppDataProvider } from '@/context/StudentAppDataProvider'
@@ -62,13 +55,13 @@ export default function AppLayout() {
           <span className="font-medium text-ink">Dira</span>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-4 space-y-1.5">
           {navItems.map(({ to, label, icon: Icon, match }) => (
             <Link
               key={to}
               to={to}
               className={cn(
-                'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors',
                 match(location.pathname)
                   ? 'bg-accent/20 text-ink font-medium'
                   : 'text-muted hover:text-ink hover:bg-secondary/50'
@@ -80,29 +73,16 @@ export default function AppLayout() {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-hairline space-y-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="accent" className="w-full justify-start gap-2">
-                <Plus className="h-4 w-4" />
-                New Chat
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem onClick={() => navigate('/chat/new')}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                {AGENT_MODES.general.label}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/skills-analysis')}>
-                <Compass className="h-4 w-4 mr-2" />
-                {AGENT_MODES.career_guidance.label}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/jobs')}>
-                <Briefcase className="h-4 w-4 mr-2" />
-                {AGENT_MODES.job_aggregation.label}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="p-4 border-t border-hairline space-y-2">
+          <Button
+            type="button"
+            variant="accent"
+            className="w-full justify-start gap-2"
+            onClick={() => navigate('/home?new=1')}
+          >
+            <Plus className="h-4 w-4" />
+            New Chat
+          </Button>
 
           <Link
             to="/profile"

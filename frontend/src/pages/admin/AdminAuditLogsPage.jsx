@@ -1,10 +1,10 @@
 import { useCallback } from 'react'
-import { useAuth } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { diraApi } from '@/lib/api/dira'
 import { useAdminPoll } from '@/hooks/useAdminPoll'
 
 export default function AdminAuditLogsPage() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken } = useAdminSession()
 
   const load = useCallback(async () => {
     const token = await getAccessToken()

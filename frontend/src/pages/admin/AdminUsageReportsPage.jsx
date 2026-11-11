@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { diraApi } from '@/lib/api/dira'
 import { useAdminPoll } from '@/hooks/useAdminPoll'
 
@@ -18,7 +18,7 @@ function Metric({ label, value }) {
 }
 
 export default function AdminUsageReportsPage() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken } = useAdminSession()
 
   const load = useCallback(async () => {
     const token = await getAccessToken()

@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { diraApi } from '@/lib/api/dira'
 import { useAdminPoll } from '@/hooks/useAdminPoll'
 
@@ -21,7 +21,7 @@ function StatCard({ title, value }) {
 }
 
 export default function AdminOverviewPage() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken } = useAdminSession()
 
   const loadAll = useCallback(async () => {
     const token = await getAccessToken()

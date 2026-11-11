@@ -7,7 +7,7 @@ import { AgentApiError } from '@/lib/api/client'
 
 const AuthContext = createContext(null)
 
-export function AuthProvider({ children }) {
+export function AuthProvider({ children, client = supabase }) {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const signOut = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !client) {
       setSession(null)
       setUser(null)
       setProfile(null)
@@ -24,13 +24,13 @@ export function AuthProvider({ children }) {
       setOnboarded(false)
       return
     }
-    await supabase.auth.signOut()
+    await client.auth.signOut()
     setSession(null)
     setUser(null)
     setProfile(null)
     setMeSnapshot(null)
     setOnboarded(false)
-  }, [])
+  }, [client])
 
   const loadMe = useCallback(
     async (accessToken, { preserveOnError = false } = {}) => {
@@ -53,8 +53,8 @@ export function AuthProvider({ children }) {
           err.status === 403 &&
           /profile not found/i.test(err.message)
 
-        if (isMissingProfile && isSupabaseConfigured()) {
-          await supabase.auth.signOut()
+        if (isMissingProfile && isSupabaseConfigured() && client) {
+          await client.auth.signOut()
           setSession(null)
           setUser(null)
           setProfile(null)
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
         return { done: false, profile: null }
       }
     },
-    []
+    [client]
   )
 
   const hydrateSession = useCallback(
@@ -88,34 +88,34 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     clearLegacyDevSession()
 
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !client) {
       setSession(null)
       setUser(null)
       setLoading(false)
       return
     }
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => hydrateSession(s))
+    client.auth.getSession().then(({ data: { session: s } }) => hydrateSession(s))
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, s) => {
+    } = client.auth.onAuthStateChange((event, s) => {
       if (event === 'INITIAL_SESSION') return
       void hydrateSession(s)
     })
 
     return () => subscription.unsubscribe()
-  }, [hydrateSession])
+  }, [client, hydrateSession])
 
   const signUp = async ({ email, password, fullName, phoneNumber }) => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !client) {
       const devUser = { id: 'dev-user', email, user_metadata: { full_name: fullName, phone_number: phoneNumber } }
       setSession({ user: devUser })
       setUser(devUser)
       return { user: devUser, error: null }
     }
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await client.auth.signUp({
       email,
       password,
       options: {
@@ -130,14 +130,14 @@ export function AuthProvider({ children }) {
   }
 
   const signIn = async ({ email, password }) => {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseConfigured() || !client) {
       const devUser = { id: 'dev-user', email, user_metadata: { full_name: email.split('@')[0] } }
       setSession({ user: devUser })
       setUser(devUser)
       return { user: devUser, error: null }
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await client.auth.signInWithPassword({ email, password })
     let isOnboarded = false
     let signedProfile = null
     if (!error && data.session) {
@@ -149,10 +149,10 @@ export function AuthProvider({ children }) {
   }
 
   const getAccessToken = useCallback(async () => {
-    if (!isSupabaseConfigured()) return null
-    const { data } = await supabase.auth.getSession()
+    if (!isSupabaseConfigured() || !client) return null
+    const { data } = await client.auth.getSession()
     return data.session?.access_token ?? null
-  }, [])
+  }, [client])
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken()

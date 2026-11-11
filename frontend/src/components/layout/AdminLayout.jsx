@@ -3,7 +3,7 @@ import { LogOut } from 'lucide-react'
 import DiraLogo from '@/components/DiraLogo'
 import ThemeToggle from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { cn } from '@/lib/utils'
 import RouterAuthFlashBar from '@/components/auth/RouterAuthFlashBar'
 
@@ -18,11 +18,11 @@ const navItems = [
 
 export default function AdminLayout() {
   const navigate = useNavigate()
-  const { signOut, profile } = useAuth()
+  const { signOut, profile, usingSecondary } = useAdminSession()
 
   const handleSignOut = async () => {
     await signOut()
-    navigate('/login')
+    navigate(import.meta.env.DEV && usingSecondary ? '/login?account=admin' : '/login')
   }
 
   return (

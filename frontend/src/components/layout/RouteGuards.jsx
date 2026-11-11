@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth, isAdminProfile, getPostAuthPath } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function ProtectedRoute() {
@@ -20,8 +21,8 @@ export function ProtectedRoute() {
   return <Outlet />
 }
 
-export function AdminRoute() {
-  const { user, profile, loading } = useAuth()
+export function AdminProtectedRoute() {
+  const { isAuthenticated, loading } = useAdminSession()
 
   if (loading) {
     return (
@@ -32,11 +33,15 @@ export function AdminRoute() {
     )
   }
 
-  if (!user) return <Navigate to="/login" replace />
-  if (!isAdminProfile(profile)) return <Navigate to="/home" replace />
+  if (!isAuthenticated) {
+    return <Navigate to="/login?account=admin" replace />
+  }
 
   return <Outlet />
 }
+
+/** @deprecated use AdminProtectedRoute */
+export const AdminRoute = AdminProtectedRoute
 
 export function StudentAppGate({ requireComplete = true }) {
   const { profile, onboarded, loading } = useAuth()
@@ -96,8 +101,10 @@ export function PublicOnlyRoute() {
   }
 
   const profileWhenReady = capturedReadyRef.current ? profileWhenReadyRef.current : profile
+  const isAdminLogin =
+    import.meta.env.DEV && new URLSearchParams(location.search).get('account') === 'admin'
   const shouldRedirect =
-    user && profile && (!isAuthForm || Boolean(profileWhenReady))
+    user && profile && (!isAuthForm || Boolean(profileWhenReady)) && !isAdminLogin
 
   if (shouldRedirect) {
     return <Navigate to={getPostAuthPath(profile, onboarded)} replace />

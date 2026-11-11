@@ -2,7 +2,7 @@ import { Navigate, Routes, Route } from 'react-router-dom'
 import LandingLayout from '@/components/layout/LandingLayout'
 import AuthLayout from '@/components/layout/AuthLayout'
 import AppLayout from '@/components/layout/AppLayout'
-import { ProtectedRoute, OnboardingGate, PublicOnlyRoute, AdminRoute } from '@/components/layout/RouteGuards'
+import { ProtectedRoute, OnboardingGate, PublicOnlyRoute, AdminProtectedRoute } from '@/components/layout/RouteGuards'
 import AdminLayout from '@/components/layout/AdminLayout'
 import AdminOverviewPage from '@/pages/admin/AdminOverviewPage'
 import AdminStudentsPage from '@/pages/admin/AdminStudentsPage'
@@ -39,18 +39,18 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AdminRoute />}>
-            <Route path="admin" element={<AdminLayout />}>
-              <Route index element={<AdminOverviewPage />} />
-              <Route path="students" element={<AdminStudentsPage />} />
-              <Route path="moderation" element={<AdminModerationPage />} />
-              <Route path="audit-logs" element={<AdminAuditLogsPage />} />
-              <Route path="usage-reports" element={<AdminUsageReportsPage />} />
-              <Route path="system" element={<AdminSystemPage />} />
-            </Route>
+        <Route element={<AdminProtectedRoute />}>
+          <Route path="admin" element={<AdminLayout />}>
+            <Route index element={<AdminOverviewPage />} />
+            <Route path="students" element={<AdminStudentsPage />} />
+            <Route path="moderation" element={<AdminModerationPage />} />
+            <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+            <Route path="usage-reports" element={<AdminUsageReportsPage />} />
+            <Route path="system" element={<AdminSystemPage />} />
           </Route>
+        </Route>
 
+        <Route element={<ProtectedRoute />}>
           <Route path="onboarding" element={<OnboardingGate requireComplete={false} />}>
             <Route index element={<OnboardingPage />} />
           </Route>

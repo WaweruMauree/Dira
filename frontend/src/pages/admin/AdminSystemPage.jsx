@@ -1,11 +1,11 @@
 import { useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { useAuth } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { diraApi } from '@/lib/api/dira'
 import { useAdminPoll } from '@/hooks/useAdminPoll'
 
 export default function AdminSystemPage() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken } = useAdminSession()
 
   const load = useCallback(async () => {
     const token = await getAccessToken()

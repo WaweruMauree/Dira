@@ -3,12 +3,12 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useAuth } from '@/context/AuthProvider'
+import { useAdminSession } from '@/hooks/useAdminSession'
 import { diraApi } from '@/lib/api/dira'
 import { useAdminPoll } from '@/hooks/useAdminPoll'
 
 export default function AdminStudentsPage() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken } = useAdminSession()
   const [q, setQ] = useState('')
 
   const load = useCallback(async () => {

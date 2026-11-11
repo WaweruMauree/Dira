@@ -1,14 +1,7 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { MessageSquare, Compass, Briefcase, Plus, Bookmark } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { MessageSquare, Plus, Bookmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { AGENT_MODES } from '@/lib/agent/tools/registry'
 import { useRecentChats } from '@/hooks/useRecentChats'
 import { useHomeChat } from '@/hooks/useHomeChat'
 import SavedJobsPanel from '@/components/jobs/SavedJobsPanel'
@@ -35,6 +28,7 @@ function TabButton({ active, onClick, children, icon: Icon }) {
 }
 
 export default function HomePage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { chats } = useRecentChats()
   const [tab, setTab] = useState('home')
   const [chatsOpen, setChatsOpen] = useState(false)
@@ -49,6 +43,19 @@ export default function HomePage() {
     hasThread,
     fullName,
   } = useHomeChat()
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    startNewChat()
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('new')
+        return next
+      },
+      { replace: true }
+    )
+  }, [searchParams, setSearchParams, startNewChat])
 
   const openChatsTab = () => {
     setTab('home')
@@ -80,29 +87,10 @@ export default function HomePage() {
             Saved jobs
           </TabButton>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => startNewChat()}>
-              <Plus className="h-4 w-4" />
-              New chat
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onSelect={() => startNewChat()}>General chat</DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/skills-analysis" className="flex items-center gap-2">
-                <Compass className="h-4 w-4" />
-                {AGENT_MODES.career_guidance.label}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/jobs" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                {AGENT_MODES.job_aggregation.label}
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => startNewChat()}>
+          <Plus className="h-4 w-4" />
+          New chat
+        </Button>
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">
