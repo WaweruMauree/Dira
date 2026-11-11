@@ -73,7 +73,7 @@ export function useHomeChat() {
   const tools = AGENT_MODES.general.tools
   const profileContext = useMemo(() => buildProfileContext(meSnapshot), [meSnapshot])
 
-  const { messages, sending, error, sendMessage: baseSend } = useChat({
+  const { messages, sending, agentPhase, error, sendMessage: baseSend } = useChat({
     chatId: conversationId ?? undefined,
     agentMode: 'general',
     tools,
@@ -148,12 +148,13 @@ export function useHomeChat() {
   )
 
   const interests = profileContext.interests ?? []
-  const hasThread = messages.length > 0
+  const hasThread = messages.length > 0 || sending || bootstrapping
 
   return {
     conversationId,
     messages,
     sending: sending || bootstrapping,
+    agentPhase: bootstrapping ? 'thinking' : agentPhase,
     error,
     sendMessage,
     startNewChat,

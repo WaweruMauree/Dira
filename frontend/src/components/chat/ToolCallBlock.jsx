@@ -20,6 +20,9 @@ function ToolDetailLines({ lines, className }) {
 }
 
 export default function ToolCallBlock({ toolCall }) {
+  if (toolCall.name === 'webSearch') {
+    return null
+  }
   if (isArtifactTool(toolCall.name) && artifactFromToolOutput(toolCall.output)) {
     return null
   }

@@ -11,7 +11,6 @@ export default function HomeChatComposer({
   onSend,
   disabled,
   sending,
-  interests,
   showPills = true,
 }) {
   const [pending, setPending] = useState([])
@@ -115,11 +114,7 @@ export default function HomeChatComposer({
         </div>
       </form>
       {showPills && (
-        <ChatSamplePills
-          interests={interests}
-          disabled={disabled || sending}
-          onPick={(msg) => onChange(msg)}
-        />
+        <ChatSamplePills disabled={disabled || sending} onPick={(msg) => onChange(msg)} />
       )}
     </div>
   )

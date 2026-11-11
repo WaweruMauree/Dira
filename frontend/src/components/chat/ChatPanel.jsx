@@ -15,7 +15,12 @@ function ChatPanelContent({
   autoSendOnce,
   onAutoSendComplete,
 }) {
-  const { messages, sending, sendMessage } = useChat({ chatId, agentMode, tools, onToolComplete })
+  const { messages, sending, agentPhase, sendMessage } = useChat({
+    chatId,
+    agentMode,
+    tools,
+    onToolComplete,
+  })
   const autoFired = useRef(false)
 
   useEffect(() => {
@@ -30,7 +35,12 @@ function ChatPanelContent({
     <div className={compact ? 'flex flex-col h-full min-h-0' : 'flex flex-col h-[calc(100vh-0px)] md:h-screen'}>
       {!compact && <ChatHeader chatId={chatId} agentMode={agentMode} />}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <ChatMessageList messages={messages} welcomeMessage={welcomeMessage} sending={sending} />
+        <ChatMessageList
+          messages={messages}
+          welcomeMessage={welcomeMessage}
+          sending={sending}
+          agentPhase={agentPhase}
+        />
       </div>
       <ChatInput
         onSend={sendMessage}

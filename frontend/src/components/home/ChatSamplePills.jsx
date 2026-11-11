@@ -1,7 +1,7 @@
-import { buildSamplePrompts } from '@/lib/chat/samplePrompts'
+import { getStaticSamplePrompts } from '@/lib/chat/samplePrompts'
 
-export default function ChatSamplePills({ interests, onPick, disabled }) {
-  const prompts = buildSamplePrompts(interests)
+export default function ChatSamplePills({ onPick, disabled }) {
+  const prompts = getStaticSamplePrompts()
   return (
     <div className="flex flex-wrap justify-center gap-2 mt-3 px-1">
       {prompts.map((p) => (

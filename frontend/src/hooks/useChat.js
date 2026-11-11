@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { sendAgentMessage } from '@/lib/api/agent.client'
 import { diraApi } from '@/lib/api/dira'
 import { definitionsFor } from '@/lib/agent/tools/index'
@@ -10,6 +10,7 @@ import { rehydrateMessages, rehydrateAssistantMessage } from '@/lib/chat/rehydra
 import { cacheArtifactOutput } from '@/lib/chat/artifactCache'
 import { isArtifactTool } from '@/lib/chat/artifactFromTool'
 import { extractMarkdownArtifact } from '@/lib/chat/parseArtifact'
+import { mergeChatMessages } from '@/lib/chat/mergeChatMessages'
 
 function makeId() {
   return crypto.randomUUID()
@@ -98,12 +99,19 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
   const { getAccessToken } = useAuth()
   const [messages, setMessages] = useState([])
   const [sending, setSending] = useState(false)
+  const [agentPhase, setAgentPhase] = useState(null)
   const [error, setError] = useState(null)
+  const sendingInFlightRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
     if (!chatId) {
-      setMessages([])
+      if (!sendingInFlightRef.current) {
+        setMessages([])
+      }
+      return undefined
+    }
+    if (sendingInFlightRef.current) {
       return undefined
     }
     ;(async () => {
@@ -114,10 +122,19 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
         if (!cancelled) {
           const mapped = data.filter((row) => row.role !== 'tool').map(mapDbMessage)
           const normalized = normalizeTurns(mapped)
-          setMessages(rehydrateMessages(normalized, chatId))
+          const fromServer = rehydrateMessages(normalized, chatId)
+          setMessages((prev) => {
+            if (!prev.length) return fromServer
+            if (sendingInFlightRef.current) {
+              return mergeChatMessages(fromServer, prev)
+            }
+            return fromServer
+          })
         }
       } catch {
-        if (!cancelled) setMessages([])
+        if (!cancelled) {
+          setMessages((prev) => (sendingInFlightRef.current ? prev : []))
+        }
       }
     })()
     return () => {
@@ -133,7 +150,9 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
       if (!activeChatId) return
 
       const turnStartedAt = performance.now()
+      sendingInFlightRef.current = true
       setSending(true)
+      setAgentPhase('thinking')
       setError(null)
 
       const attachments = extras.attachments ?? []
@@ -186,6 +205,7 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
         while (response.status === 'requires_action' && response.toolCalls?.length && guard < 8) {
           guard += 1
           const pending = response.toolCalls.map((tc) => ({ ...tc, status: 'pending' }))
+          setAgentPhase('cogitating')
           setMessages((prev) => [
             ...prev,
             {
@@ -236,6 +256,8 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
             return next
           })
 
+          setAgentPhase('finalising')
+
           response = await sendAgentMessage(
             {
               conversationId: response.conversationId || activeChatId,
@@ -251,6 +273,10 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
 
         if (response.status === 'error') {
           throw new Error(response.error || 'Agent request failed')
+        }
+
+        if (response.status === 'complete' || response.message) {
+          setAgentPhase('finalising')
         }
 
         const responseDurationMs = Math.round(performance.now() - turnStartedAt)
@@ -281,11 +307,13 @@ export function useChat({ chatId, agentMode, tools, onToolComplete }) {
         }
         setMessages((prev) => [...prev, errorMsg])
       } finally {
+        sendingInFlightRef.current = false
         setSending(false)
+        setAgentPhase(null)
       }
     },
     [agentMode, chatId, getAccessToken, sending, tools, onToolComplete]
   )
 
-  return { messages, sending, error, sendMessage }
+  return { messages, sending, agentPhase, error, sendMessage }
 }

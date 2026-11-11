@@ -1,30 +1,24 @@
-/**
- * @param {string[]} interests
- * @returns {string}
- */
-export function pickRandomInterest(interests) {
-  const list = (interests ?? []).filter(Boolean)
-  if (list.length === 0) return null
-  return list[Math.floor(Math.random() * list.length)]
-}
+/** Fixed starter prompts on Home (not tied to profile interests). */
+export const STATIC_SAMPLE_PROMPTS = [
+  {
+    id: 'cv-fintech',
+    label: 'Help me write a CV for FinTech',
+    message: 'Help me write a CV for FinTech.',
+  },
+  {
+    id: 'resources-fintech',
+    label: 'Resources to learn about FinTech',
+    message: 'What resources can I use to learn more about FinTech?',
+  },
+  {
+    id: 'internship-prep',
+    label: 'How should I prepare for internship applications?',
+    message: 'How should I prepare for internship applications in my field?',
+  },
+]
 
-/**
- * @param {string[]} interests
- */
-export function buildSamplePrompts(interests) {
-  const role = pickRandomInterest(interests) ?? 'my target role'
-  return [
-    {
-      id: 'cv',
-      label: `Help me write a CV for ${role}`,
-      message: `Help me write a CV for ${role}.`,
-    },
-    {
-      id: 'resources',
-      label: `Resources to learn about ${role}`,
-      message: `What resources can I use to learn more about ${role}?`,
-    },
-  ]
+export function getStaticSamplePrompts() {
+  return STATIC_SAMPLE_PROMPTS
 }
 
 /**

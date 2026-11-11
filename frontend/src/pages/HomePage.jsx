@@ -36,10 +36,10 @@ export default function HomePage() {
   const {
     messages,
     sending,
+    agentPhase,
     sendMessage,
     startNewChat,
     loadConversation,
-    interests,
     hasThread,
     fullName,
   } = useHomeChat()
@@ -99,7 +99,7 @@ export default function HomePage() {
           <div className="flex-1 min-h-0 mb-4 -mx-2">
             <HomeChatHero fullName={fullName} compact />
             <div className="h-[min(50vh,420px)]">
-              <ChatMessageList messages={messages} sending={sending} />
+              <ChatMessageList messages={messages} sending={sending} agentPhase={agentPhase} />
             </div>
           </div>
         )}
@@ -110,7 +110,6 @@ export default function HomePage() {
             onSend={sendMessage}
             disabled={false}
             sending={sending}
-            interests={interests}
             showPills={!hasThread}
           />
         </div>

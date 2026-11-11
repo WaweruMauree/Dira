@@ -8,6 +8,8 @@ import { formatTaskDuration } from '@/lib/chat/formatDuration'
 import ChatArtifactCard from '@/components/chat/ChatArtifactCard'
 import ToolCallBlock from '@/components/chat/ToolCallBlock'
 
+const TOOLS_HIDDEN_FROM_UI = new Set(['webSearch'])
+
 export default function AssistantTurnBlock({ message, sending = false }) {
   const toolArtifacts = artifactsFromToolCalls(message.toolCalls)
   const { displayText, artifact } = parseAssistantContent(message.content, {
@@ -15,7 +17,9 @@ export default function AssistantTurnBlock({ message, sending = false }) {
     preferToolArtifact: true,
   })
   const showArtifact = artifact && (artifact.markdown || artifact.imageUrl)
-  const nonArtifactTools = (message.toolCalls ?? []).filter((tc) => !isArtifactTool(tc.name))
+  const nonArtifactTools = (message.toolCalls ?? []).filter(
+    (tc) => !isArtifactTool(tc.name) && !TOOLS_HIDDEN_FROM_UI.has(tc.name)
+  )
   const artifactPending =
     sending &&
     !message.responseDurationMs &&
@@ -37,17 +41,28 @@ export default function AssistantTurnBlock({ message, sending = false }) {
     }
   }
 
+  const hasVisibleBody =
+    Boolean(displayText) ||
+    showArtifact ||
+    artifactPending ||
+    nonArtifactTools.length > 0 ||
+    Boolean(durationLabel)
+
+  if (!hasVisibleBody) {
+    return null
+  }
+
   return (
     <div className="flex justify-start">
       <div className="max-w-[85%] space-y-3 w-full">
-        {(displayText || !showArtifact) && (
+        {displayText ? (
           <div
             className={cn(
               'rounded-2xl px-4 py-3 text-sm leading-relaxed',
               'bg-card-bg border border-hairline text-ink shadow-sm'
             )}
           >
-            {displayText ? <p className="whitespace-pre-wrap">{displayText}</p> : null}
+            <p className="whitespace-pre-wrap">{displayText}</p>
             {displayText && (
               <div className="mt-3 pt-2 border-t border-hairline/80">
                 <Button
@@ -73,7 +88,7 @@ export default function AssistantTurnBlock({ message, sending = false }) {
               </div>
             )}
           </div>
-        )}
+        ) : null}
 
         {artifactPending && !showArtifact && (
           <p className="text-sm text-muted pl-1">Preparing your document…</p>

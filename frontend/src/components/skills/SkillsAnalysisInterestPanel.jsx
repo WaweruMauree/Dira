@@ -1,35 +1,32 @@
 import { Link } from 'react-router-dom'
-import { Check } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import SkillsAnalysisMethodology from '@/components/skills/SkillsAnalysisMethodology'
 import { EMPTY_FIELD } from '@/constants/copyStyle'
 
 const STATUS_VARIANT = {
-  met: 'accent',
+  met: 'outline',
   upskill: 'outline',
   gap: 'outline',
 }
 
 const STATUS_LABEL = {
+  met: 'Met',
   upskill: 'Upskill',
   gap: 'Gap',
 }
 
+const STATUS_CLASS = {
+  met: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
+}
+
 function SkillStatusBadge({ status }) {
-  if (status === 'met') {
-    return (
-      <span
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-emerald-500 text-emerald-600"
-        aria-label="Met"
-        title="Met"
-      >
-        <Check className="h-4 w-4" strokeWidth={2.5} />
-      </span>
-    )
-  }
   return (
-    <Badge variant={STATUS_VARIANT[status] ?? 'outline'} className="text-[10px]">
+    <Badge
+      variant={STATUS_VARIANT[status] ?? 'outline'}
+      className={cn('text-[10px]', STATUS_CLASS[status])}
+    >
       {STATUS_LABEL[status] ?? status}
     </Badge>
   )
