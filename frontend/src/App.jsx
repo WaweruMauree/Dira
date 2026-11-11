@@ -8,7 +8,6 @@ import AdminOverviewPage from '@/pages/admin/AdminOverviewPage'
 import AdminStudentsPage from '@/pages/admin/AdminStudentsPage'
 import AdminModerationPage from '@/pages/admin/AdminModerationPage'
 import AdminAuditLogsPage from '@/pages/admin/AdminAuditLogsPage'
-import AdminUsageReportsPage from '@/pages/admin/AdminUsageReportsPage'
 import AdminSystemPage from '@/pages/admin/AdminSystemPage'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LandingPage from '@/pages/LandingPage'
@@ -45,7 +44,7 @@ export default function App() {
             <Route path="students" element={<AdminStudentsPage />} />
             <Route path="moderation" element={<AdminModerationPage />} />
             <Route path="audit-logs" element={<AdminAuditLogsPage />} />
-            <Route path="usage-reports" element={<AdminUsageReportsPage />} />
+            <Route path="usage-reports" element={<Navigate to="/admin/audit-logs" replace />} />
             <Route path="system" element={<AdminSystemPage />} />
           </Route>
         </Route>

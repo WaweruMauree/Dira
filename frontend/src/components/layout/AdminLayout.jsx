@@ -9,11 +9,10 @@ import RouterAuthFlashBar from '@/components/auth/RouterAuthFlashBar'
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
-  { to: '/admin/students', label: 'Manage Student Accounts' },
-  { to: '/admin/moderation', label: 'Moderate Opportunity Listings' },
-  { to: '/admin/audit-logs', label: 'Audit Access Logs' },
-  { to: '/admin/usage-reports', label: 'Generate Usage Reports' },
-  { to: '/admin/system', label: 'Monitor System Performance' },
+  { to: '/admin/students', label: 'Student Management' },
+  { to: '/admin/moderation', label: 'Opportunity Moderation' },
+  { to: '/admin/audit-logs', label: 'Audit Logs' },
+  { to: '/admin/system', label: 'System Performance' },
 ]
 
 export default function AdminLayout() {

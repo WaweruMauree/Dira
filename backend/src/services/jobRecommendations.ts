@@ -6,6 +6,11 @@ import { fetchAdzuna } from './jobProviders/adzuna.js'
 import { fetchArbeitnowFiltered } from './jobProviders/arbeitnow.js'
 import { fetchHimalayas } from './jobProviders/himalayas.js'
 import { fetchJobicy } from './jobProviders/jobicy.js'
+import {
+  recordAggregationRun,
+  type AggregationRunStatus,
+  type JobProviderKey,
+} from './aggregationRunLogger.js'
 
 const ENTRY_KEYWORDS = ['intern', 'internship', 'graduate', 'entry', 'junior', 'trainee', 'assistant']
 
@@ -14,6 +19,19 @@ export type MatchBreakdownLine = {
   points: number
   detail?: string
 }
+
+export type ProviderProbeResult = {
+  key: JobProviderKey
+  status: AggregationRunStatus
+  itemsFound: number
+}
+
+const JOB_PROVIDERS: { key: JobProviderKey; fetch: (query: string) => Promise<UserJobInput[]> }[] = [
+  { key: 'himalayas', fetch: fetchHimalayas },
+  { key: 'jobicy', fetch: fetchJobicy },
+  { key: 'adzuna', fetch: fetchAdzuna },
+  { key: 'arbeitnow', fetch: fetchArbeitnowFiltered },
+]
 
 function jobHaystack(job: UserJobInput): string {
   return `${job.title} ${job.description ?? ''} ${(job.tags ?? []).join(' ')}`.toLowerCase()
@@ -133,21 +151,67 @@ function dedupeKey(job: UserJobInput): string {
   return `${(job.title ?? '').toLowerCase()}|${(job.organisation ?? '').toLowerCase()}`
 }
 
-export async function fetchJobsForQuery(query: string): Promise<UserJobInput[]> {
-  const attempts = [
-    () => withTimeout(fetchHimalayas(query), PROVIDER_TIMEOUT_MS),
-    () => withTimeout(fetchJobicy(query), PROVIDER_TIMEOUT_MS),
-    () => withTimeout(fetchAdzuna(query), PROVIDER_TIMEOUT_MS),
-    () => withTimeout(fetchArbeitnowFiltered(query), PROVIDER_TIMEOUT_MS),
-  ]
-  const settled = await Promise.allSettled(attempts.map((run) => run()))
+function deriveStatus(itemsFound: number, errors: string[]): AggregationRunStatus {
+  if (itemsFound > 0 && errors.length === 0) return 'SUCCESS'
+  if (itemsFound > 0 && errors.length > 0) return 'PARTIAL'
+  return 'FAILED'
+}
+
+export async function runJobProvidersForQuery(
+  query: string,
+  { logRuns = true }: { logRuns?: boolean } = {}
+): Promise<{ jobs: UserJobInput[]; providers: ProviderProbeResult[] }> {
   const collected: UserJobInput[] = []
-  for (const result of settled) {
-    if (result.status === 'fulfilled' && result.value) {
-      collected.push(...result.value)
+  const providers: ProviderProbeResult[] = []
+
+  for (const { key, fetch } of JOB_PROVIDERS) {
+    const errors: string[] = []
+    let items: UserJobInput[] = []
+
+    try {
+      const result = await withTimeout(fetch(query), PROVIDER_TIMEOUT_MS)
+      if (result === null) {
+        errors.push('Timeout or provider error')
+      } else {
+        items = result
+      }
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : 'Provider failed')
+    }
+
+    if (items.length === 0 && errors.length === 0) {
+      errors.push('No listings returned')
+    }
+
+    const status = deriveStatus(items.length, errors)
+    collected.push(...items)
+
+    providers.push({ key, status, itemsFound: items.length })
+
+    if (logRuns) {
+      await recordAggregationRun({
+        providerKey: key,
+        itemsFound: items.length,
+        errors,
+        status,
+      })
     }
   }
-  return collected
+
+  return { jobs: collected, providers }
+}
+
+export async function fetchJobsForQuery(query: string): Promise<UserJobInput[]> {
+  const { jobs } = await runJobProvidersForQuery(query, { logRuns: true })
+  return jobs
+}
+
+export async function runJobProviderProbe(query = 'graduate internship'): Promise<{
+  runsRecorded: number
+  providers: ProviderProbeResult[]
+}> {
+  const { providers } = await runJobProvidersForQuery(query, { logRuns: true })
+  return { runsRecorded: providers.length, providers }
 }
 
 export async function recommendJobsForStudent(

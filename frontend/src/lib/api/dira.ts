@@ -6,6 +6,8 @@ import type {
   AdminPendingReview,
   AdminStudentRow,
   AdminUsageReport,
+  AdminSystemHealth,
+  AdminAggregationProbeResult,
   AgentMode,
   CareerPathwayRecord,
   CareerPathwayStep,
@@ -373,6 +375,15 @@ export const diraApi = {
       `${API_ENDPOINTS.adminSystemPerformance}${queryString(params)}`,
       { token }
     )
+  },
+  adminGetSystemHealth(token: string) {
+    return apiFetch<{ data: AdminSystemHealth }>(API_ENDPOINTS.adminSystemHealth, { token })
+  },
+  adminRunAggregationProbe(token: string) {
+    return apiFetch<{ data: AdminAggregationProbeResult }>(API_ENDPOINTS.adminAggregationProbe, {
+      method: 'POST',
+      token,
+    })
   },
   saveCatalogOpportunity(token: string, opportunityId: number) {
     return apiFetch(API_ENDPOINTS.savedOpportunities, {

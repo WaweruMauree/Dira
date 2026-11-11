@@ -32,7 +32,7 @@ export default function AdminModerationPage() {
 
   return (
     <div className="space-y-6 max-w-6xl">
-      <h1 className="font-heading text-2xl font-medium text-ink">Moderate opportunity listings</h1>
+      <h1 className="font-heading text-2xl font-medium text-ink">Opportunity Moderation</h1>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="rounded-xl border border-hairline overflow-x-auto">
         <table className="w-full text-sm">

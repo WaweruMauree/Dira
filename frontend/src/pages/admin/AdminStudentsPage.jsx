@@ -34,7 +34,7 @@ export default function AdminStudentsPage() {
 
   return (
     <div className="space-y-6 max-w-6xl">
-      <h1 className="font-heading text-2xl font-medium text-ink">Manage student accounts</h1>
+      <h1 className="font-heading text-2xl font-medium text-ink">Student Management</h1>
       <div className="flex gap-2 max-w-md">
         <Input
           placeholder="Search by name, email, or phone"

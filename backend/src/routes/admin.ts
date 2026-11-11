@@ -4,6 +4,12 @@ import { z } from 'zod'
 import { asyncHandler, HttpError } from '../middleware/error.js'
 import { parsePaging, throwIfError } from '../lib/helpers.js'
 import { requireAdmin } from '../middleware/auth.js'
+import { hasOpenRouter } from '../lib/openrouter.js'
+import { hasExaKey } from '../lib/exa.js'
+import { createServiceClient } from '../lib/supabase.js'
+import { ensureJobApiOpportunitySources } from '../services/aggregationRunLogger.js'
+import { runJobProviderProbe } from '../services/jobRecommendations.js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const adminRouter = Router()
 
@@ -312,16 +318,138 @@ adminRouter.get(
 )
 
 adminRouter.get(
+  '/system/health',
+  asyncHandler(async (req, res) => {
+    const now = Date.now()
+    const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString()
+    const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const checkedAt = new Date().toISOString()
+
+    const dbStart = Date.now()
+    const dbProbe = await req.supabase.from('profiles').select('id', { count: 'exact', head: true })
+    const dbLatencyMs = Date.now() - dbStart
+    const dbOk = !dbProbe.error
+
+    const [
+      conv24h,
+      msg24h,
+      skills7d,
+      runs7d,
+      failedRuns7d,
+    ] = await Promise.all([
+      req.supabase
+        .from('conversations')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', since24h),
+      req.supabase
+        .from('conversation_messages')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', since24h),
+      req.supabase
+        .from('skills_gap_analyses')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', since7d),
+      req.supabase
+        .from('aggregation_runs')
+        .select('*', { count: 'exact', head: true })
+        .gte('started_at', since7d),
+      req.supabase
+        .from('aggregation_runs')
+        .select('*', { count: 'exact', head: true })
+        .gte('started_at', since7d)
+        .or('status.eq.FAILED,status.eq.ERROR,status.eq.failed,status.eq.error'),
+    ])
+
+    for (const r of [conv24h, msg24h, skills7d, runs7d, failedRuns7d]) throwIfError(r.error)
+
+    const runsLast7d = runs7d.count ?? 0
+    const failedLast7d = failedRuns7d.count ?? 0
+    const successRatePercent =
+      runsLast7d > 0 ? Math.round(((runsLast7d - failedLast7d) / runsLast7d) * 100) : null
+
+    const openRouterConfigured = hasOpenRouter()
+    const exaConfigured = hasExaKey()
+
+    let status: 'healthy' | 'degraded' | 'down' = 'healthy'
+    let summary = 'All monitored systems are operating normally.'
+
+    if (!dbOk) {
+      status = 'down'
+      summary = 'Database is unreachable or returned an error.'
+    } else if (!openRouterConfigured) {
+      status = 'degraded'
+      summary = 'OpenRouter is not configured — AI agent features may be unavailable.'
+    } else if (runsLast7d >= 3 && successRatePercent !== null && successRatePercent < 50) {
+      status = 'degraded'
+      summary = 'Job aggregation success rate is below 50% over the last 7 days.'
+    } else if (failedLast7d > 0 && runsLast7d <= 2) {
+      status = 'degraded'
+      summary = 'Some job aggregation runs failed recently.'
+    }
+
+    res.json({
+      data: {
+        overall: { status, summary },
+        database: { ok: dbOk, latencyMs: dbLatencyMs, checkedAt },
+        agent: {
+          openRouterConfigured,
+          exaConfigured,
+          conversationsLast24h: conv24h.count ?? 0,
+          messagesLast24h: msg24h.count ?? 0,
+          skillsAnalysesLast7d: skills7d.count ?? 0,
+        },
+        jobAggregation: {
+          runsLast7d,
+          failedLast7d,
+          successRatePercent,
+        },
+        api: { status: 'ok', time: checkedAt },
+      },
+    })
+  })
+)
+
+async function listAggregationRuns(
+  supabase: SupabaseClient,
+  limit: number,
+  offset: number
+) {
+  return supabase
+    .from('aggregation_runs')
+    .select('id, started_at, finished_at, status, items_found, errors, opportunity_sources (name)', {
+      count: 'exact',
+    })
+    .order('started_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+}
+
+adminRouter.post(
+  '/system/aggregation-probe',
+  asyncHandler(async (req, res) => {
+    await ensureJobApiOpportunitySources()
+    const data = await runJobProviderProbe()
+    await writeAuditLog(req, 'Ran job aggregation probe', 'aggregation_runs', null)
+    res.json({ data })
+  })
+)
+
+adminRouter.get(
   '/system/performance',
   asyncHandler(async (req, res) => {
     const { limit, offset } = parsePaging(req)
-    const { data, error, count } = await req.supabase
-      .from('aggregation_runs')
-      .select('id, started_at, finished_at, status, items_found, errors, opportunity_sources (name)', {
-        count: 'exact',
-      })
-      .order('started_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    let { data, error, count } = await listAggregationRuns(req.supabase, limit, offset)
+
+    if (error) {
+      try {
+        const service = createServiceClient()
+        const fallback = await listAggregationRuns(service, limit, offset)
+        data = fallback.data
+        error = fallback.error
+        count = fallback.count
+      } catch {
+        // keep original error
+      }
+    }
     throwIfError(error)
 
     res.json({ data: data ?? [], count: count ?? 0, limit, offset })

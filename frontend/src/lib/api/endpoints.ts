@@ -25,6 +25,8 @@ export const API_ENDPOINTS = {
   adminAuditLogs: '/api/v1/admin/audit-logs',
   adminUsageReport: '/api/v1/admin/usage-report',
   adminSystemPerformance: '/api/v1/admin/system/performance',
+  adminSystemHealth: '/api/v1/admin/system/health',
+  adminAggregationProbe: '/api/v1/admin/system/aggregation-probe',
   profiles: '/api/v1/profiles',
   students: '/api/v1/students',
   studentProfiles: '/api/v1/student-profiles',

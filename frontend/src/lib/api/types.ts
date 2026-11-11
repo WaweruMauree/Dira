@@ -267,6 +267,37 @@ export interface AdminUsageReport {
   totalSavedOpportunities: number
 }
 
+export type AdminSystemHealthStatus = 'healthy' | 'degraded' | 'down'
+
+export interface AdminSystemHealth {
+  overall: { status: AdminSystemHealthStatus; summary: string }
+  database: { ok: boolean; latencyMs: number; checkedAt: string }
+  agent: {
+    openRouterConfigured: boolean
+    exaConfigured: boolean
+    conversationsLast24h: number
+    messagesLast24h: number
+    skillsAnalysesLast7d: number
+  }
+  jobAggregation: {
+    runsLast7d: number
+    failedLast7d: number
+    successRatePercent: number | null
+  }
+  api: { status: string; time: string }
+}
+
+export interface AdminAggregationProbeProvider {
+  key: string
+  status: string
+  itemsFound: number
+}
+
+export interface AdminAggregationProbeResult {
+  runsRecorded: number
+  providers: AdminAggregationProbeProvider[]
+}
+
 export interface AdminAggregationRun {
   id: number
   started_at: string
