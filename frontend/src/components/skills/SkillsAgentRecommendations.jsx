@@ -12,6 +12,7 @@ export default function SkillsAgentRecommendations({
   error,
   hasDevelopmentSkills = false,
   density = 'compact',
+  hideSkillHeadings = false,
 }) {
   const bodyClass = textSize[density] ?? textSize.compact
   const snippetClass = density === 'comfortable' ? 'text-xs' : 'text-[11px]'
@@ -54,7 +55,9 @@ export default function SkillsAgentRecommendations({
     <div className="space-y-4">
       {groups.map((group) => (
         <div key={group.skill ?? group.query}>
-          <p className={`${bodyClass} font-medium text-ink mb-1`}>{group.skill ?? group.query}</p>
+          {hideSkillHeadings ? null : (
+            <p className={`${bodyClass} font-medium text-ink mb-1`}>{group.skill ?? group.query}</p>
+          )}
           <ul className="space-y-1">
             {group.items.map((item, i) => (
               <li key={`${group.query}-${i}`}>
